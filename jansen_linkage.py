@@ -1,5 +1,6 @@
 """
-Jansen Linkage Animation Generator
+Jansen Linkage Animation Generator test
+
 ===================================
 Simulates the 11-bar Jansen linkage (used in Strandbeest walking machines)
 and generates a GIF animation of two crank revolutions with foot path tracing.
