@@ -1,5 +1,5 @@
 """
-Jansen Linkage Animation Generator test
+Jansen Linkage Animation Generator 
 
 ===================================
 Simulates the 11-bar Jansen linkage (used in Strandbeest walking machines)
@@ -9,7 +9,7 @@ Bar lengths from diagram:
     a=38.0, b=41.5, c=39.3, d=40.1, e=55.8, f=39.4,
     g=36.7, h=65.7, i=49.0, j=50.0, k=61.9,
     l=7.8, m=15.0
-
+aaaaa
 Topology (from diagram):
     Fixed pivots: J0 (center, b/c/d junction) and J1 (offset by a horizontally, l vertically)
     Horizontal distance between fixed pivots = a = 38.0
