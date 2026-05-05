@@ -9,7 +9,7 @@ Bar lengths from diagram:
     a=38.0, b=41.5, c=39.3, d=40.1, e=55.8, f=39.4,
     g=36.7, h=65.7, i=49.0, j=50.0, k=61.9,
     l=7.8, m=15.0
-aaaaa
+
 Topology (from diagram):
     Fixed pivots: J0 (center, b/c/d junction) and J1 (offset by a horizontally, l vertically)
     Horizontal distance between fixed pivots = a = 38.0
@@ -159,22 +159,22 @@ foot_path = np.array(foot_path)
 print("Generating animation frames...")
 
 # Define bar connections for drawing
-# Each tuple: (joint_index_a, joint_index_b, color, linewidth)
+# Each tuple: (joint_index_a, joint_index_b, color, linewidth, bar_name, length)
 BARS = [
     # Structural bars (dark)
-    (0, 3, '#2c3e50', 2.5),   # b
-    (0, 4, '#2c3e50', 2.5),   # d
-    (0, 6, '#2c3e50', 2.5),   # c
-    (3, 4, '#2c3e50', 2.5),   # e
-    (4, 5, '#2c3e50', 2.5),   # f
-    (5, 6, '#2c3e50', 2.5),   # g
-    (5, 7, '#2c3e50', 2.5),   # h
-    (6, 7, '#2c3e50', 2.5),   # i
-    (2, 6, '#2c3e50', 2.5),   # k (crank tip J2 to J6)
+    (0, 3, '#2c3e50', 2.5, 'b', LENGTHS['b']),
+    (0, 4, '#2c3e50', 2.5, 'd', LENGTHS['d']),
+    (0, 6, '#2c3e50', 2.5, 'c', LENGTHS['c']),
+    (3, 4, '#2c3e50', 2.5, 'e', LENGTHS['e']),
+    (4, 5, '#2c3e50', 2.5, 'f', LENGTHS['f']),
+    (5, 6, '#2c3e50', 2.5, 'g', LENGTHS['g']),
+    (5, 7, '#2c3e50', 2.5, 'h', LENGTHS['h']),
+    (6, 7, '#2c3e50', 2.5, 'i', LENGTHS['i']),
+    (2, 6, '#2c3e50', 2.5, 'k', LENGTHS['k']),   # k (crank tip J2 to J6)
     # Connecting bar
-    (2, 3, '#2c3e50', 2.5),   # j
+    (2, 3, '#2c3e50', 2.5, 'j', LENGTHS['j']),
     # Crank (accent)
-    (1, 2, '#e74c3c', 3.0),   # m (crank)
+    (1, 2, '#e74c3c', 3.0, 'm', LENGTHS['m']),   # m (crank)
 ]
 
 # Compute axis limits
@@ -184,8 +184,11 @@ y_margin = 15
 xlim = [all_positions[:, 0].min() - x_margin, all_positions[:, 0].max() + x_margin]
 ylim = [all_positions[:, 1].min() - y_margin, all_positions[:, 1].max() + y_margin]
 
-fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+fig = plt.figure(figsize=(14, 10))
 fig.patch.set_facecolor('#1a1a2e')
+
+# Main axes for the linkage animation (right side, leaving room for table on left)
+ax = fig.add_axes([0.22, 0.05, 0.75, 0.9])
 ax.set_facecolor('#1a1a2e')
 ax.set_aspect('equal')
 ax.set_xlim(xlim)
@@ -194,13 +197,13 @@ ax.axis('off')
 
 # Title
 title_text = "Jansen Linkage — Strandbeest Walking Mechanism"
-title = ax.text(0.5, 0.95, title_text, transform=ax.transAxes,
+title = ax.text(0.5, 0.96, title_text, transform=ax.transAxes,
                 ha='center', va='top', fontsize=16, fontweight='bold',
                 color='#ecf0f1', bbox=dict(boxstyle='round,pad=0.5',
                 facecolor='#16213e', edgecolor='#0f3460', alpha=0.9))
 
 # Angle label
-angle_label = ax.text(0.5, 0.89, '', transform=ax.transAxes,
+angle_label = ax.text(0.5, 0.90, '', transform=ax.transAxes,
                       ha='center', va='top', fontsize=12, color='#f39c12')
 
 # Foot path trace (will be updated each frame)
@@ -208,9 +211,71 @@ foot_line, = ax.plot([], [], color='#00ff88', linewidth=2, alpha=0.8)
 
 # Bar lines
 bar_lines = []
-for j1, j2, color, lw in BARS:
+for j1, j2, color, lw, name, length in BARS:
     line, = ax.plot([], [], color=color, linewidth=lw, solid_capstyle='round')
     bar_lines.append((line, j1, j2))
+
+# ── Lengths table on the left side ───────────────────────────
+table_ax = fig.add_axes([0.02, 0.12, 0.2, 0.75])
+table_ax.axis('off')
+
+# Table header
+table_title = table_ax.text(0.5, 0.95, 'Bar Lengths', ha='center', va='top',
+                            fontsize=16, fontweight='bold', color='#ecf0f1',
+                            transform=table_ax.transAxes)
+
+# Build table data
+bar_info = [
+    ('Bar', 'Endpoints', 'Length'),
+    ('─' * 12, '─' * 12, '──────'),
+    ('b', 'J0↔J3', f"{LENGTHS['b']:.1f}"),
+    ('c', 'J0↔J6', f"{LENGTHS['c']:.1f}"),
+    ('d', 'J0↔J4', f"{LENGTHS['d']:.1f}"),
+    ('e', 'J3↔J4', f"{LENGTHS['e']:.1f}"),
+    ('f', 'J4↔J5', f"{LENGTHS['f']:.1f}"),
+    ('g', 'J5↔J6', f"{LENGTHS['g']:.1f}"),
+    ('h', 'J5↔J7', f"{LENGTHS['h']:.1f}"),
+    ('i', 'J6↔J7', f"{LENGTHS['i']:.1f}"),
+    ('j', 'J2↔J3', f"{LENGTHS['j']:.1f}"),
+    ('k', 'J2↔J6', f"{LENGTHS['k']:.1f}"),
+    ('m', 'J1↔J2', f"{LENGTHS['m']:.1f}"),
+]
+
+# Draw table background
+table_bg = table_ax.add_patch(plt.Rectangle((0.05, 0.02), 0.9, 0.88,
+    transform=table_ax.transAxes, facecolor='#16213e',
+    edgecolor='#0f3460', alpha=0.9, zorder=0))
+
+# Draw table rows
+y_pos = 0.82
+row_height = 0.055
+for row_idx, (bar, endpoints, length) in enumerate(bar_info):
+    if row_idx == 0:  # Header row
+        color = '#f39c12'
+        weight = 'bold'
+        size = 14
+    elif row_idx == 1:  # Separator
+        y_pos -= 0.01
+        continue
+    else:
+        # Color the crank row differently
+        if bar == 'm':
+            color = '#e74c3c'
+        else:
+            color = '#bdc3c7'
+        weight = 'normal'
+        size = 12
+
+    table_ax.text(0.1, y_pos, bar, ha='left', va='center',
+                  fontsize=size, fontweight=weight, color=color,
+                  transform=table_ax.transAxes, family='monospace')
+    table_ax.text(0.45, y_pos, endpoints, ha='center', va='center',
+                  fontsize=size, color=color,
+                  transform=table_ax.transAxes, family='monospace')
+    table_ax.text(0.88, y_pos, length, ha='right', va='center',
+                  fontsize=size, color=color,
+                  transform=table_ax.transAxes, family='monospace')
+    y_pos -= row_height
 
 # Joint markers
 joint_circles = []
@@ -273,7 +338,7 @@ plt.close(fig)
 # ── Save GIF ─────────────────────────────────────────────────
 from PIL import Image
 
-output_path = r"C:\Users\dugua\Desktop\jansen_linkage.gif"
+output_path = r"C:\Sources\JansenLinkage\jansen_linkage.gif"
 print(f"\nSaving GIF to {output_path} ...")
 print(f"  Total frames collected: {len(frames_for_gif)}")
 
