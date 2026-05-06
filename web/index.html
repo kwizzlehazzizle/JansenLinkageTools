@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jansen Linkage Simulator</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header>
+      <h1>Jansen Linkage Simulator</h1>
+      <p class="subtitle">Interactive Strandbeest walking mechanism — adjust dimensions and watch the gait</p>
+    </header>
+
+    <div class="main-layout">
+      <!-- Left panel: controls -->
+      <aside class="control-panel">
+        <!-- Fixed pivot distances -->
+        <section class="panel-section">
+          <h2>Fixed Pivots</h2>
+          <div class="input-group">
+            <label for="input-a">
+              <span class="label-name">a</span>
+              <span class="label-desc">Horizontal distance</span>
+            </label>
+            <input type="number" id="input-a" step="0.1" min="1" value="38.0">
+          </div>
+          <div class="input-group">
+            <label for="input-l">
+              <span class="label-name">l</span>
+              <span class="label-desc">Vertical distance</span>
+            </label>
+            <input type="number" id="input-l" step="0.1" min="0.1" value="7.8">
+          </div>
+        </section>
+
+        <!-- Bar lengths -->
+        <section class="panel-section">
+          <h2>Bar Lengths</h2>
+          <div class="input-group">
+            <label for="input-b"><span class="label-name" style="color:#ff6b6b">b</span></label>
+            <input type="number" id="input-b" step="0.1" min="1" value="41.5">
+          </div>
+          <div class="input-group">
+            <label for="input-c"><span class="label-name" style="color:#e8838b">c</span></label>
+            <input type="number" id="input-c" step="0.1" min="1" value="39.3">
+          </div>
+          <div class="input-group">
+            <label for="input-d"><span class="label-name" style="color:#f39c12">d</span></label>
+            <input type="number" id="input-d" step="0.1" min="1" value="40.1">
+          </div>
+          <div class="input-group">
+            <label for="input-e"><span class="label-name" style="color:#f1c40f">e</span></label>
+            <input type="number" id="input-e" step="0.1" min="1" value="55.8">
+          </div>
+          <div class="input-group">
+            <label for="input-f"><span class="label-name" style="color:#e74c3c">f</span></label>
+            <input type="number" id="input-f" step="0.1" min="1" value="39.4">
+          </div>
+          <div class="input-group">
+            <label for="input-g"><span class="label-name" style="color:#e67e22">g</span></label>
+            <input type="number" id="input-g" step="0.1" min="1" value="36.7">
+          </div>
+          <div class="input-group">
+            <label for="input-h"><span class="label-name" style="color:#9b59b6">h</span></label>
+            <input type="number" id="input-h" step="0.1" min="1" value="65.7">
+          </div>
+          <div class="input-group">
+            <label for="input-i"><span class="label-name" style="color:#3498db">i</span></label>
+            <input type="number" id="input-i" step="0.1" min="1" value="49.0">
+          </div>
+          <div class="input-group">
+            <label for="input-j"><span class="label-name" style="color:#1abc9c">j</span></label>
+            <input type="number" id="input-j" step="0.1" min="1" value="50.0">
+          </div>
+          <div class="input-group">
+            <label for="input-k"><span class="label-name" style="color:#2980b9">k</span></label>
+            <input type="number" id="input-k" step="0.1" min="1" value="61.9">
+          </div>
+          <div class="input-group">
+            <label for="input-m"><span class="label-name" style="color:#1a5276">m</span> <span class="label-desc">(crank)</span></label>
+            <input type="number" id="input-m" step="0.1" min="1" value="15.0">
+          </div>
+        </section>
+
+        <!-- Animation controls -->
+        <section class="panel-section">
+          <h2>Animation</h2>
+          <div class="button-row">
+            <button id="btn-play" class="btn btn-primary" title="Play/Pause">▶ Play</button>
+            <button id="btn-reset" class="btn btn-secondary" title="Reset to defaults">↺ Reset</button>
+          </div>
+          <div class="slider-group">
+            <label for="slider-angle">
+              Crank Angle: <span id="angle-display">0.0°</span>
+            </label>
+            <input type="range" id="slider-angle" min="0" max="720" step="0.5" value="0">
+          </div>
+          <div class="slider-group">
+            <label for="slider-speed">
+              Speed: <span id="speed-display">1.0×</span>
+            </label>
+            <input type="range" id="slider-speed" min="0.1" max="5" step="0.1" value="1.0">
+          </div>
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="chk-footpath" checked>
+              Show foot path trace
+            </label>
+          </div>
+        </section>
+
+        <!-- Export controls -->
+        <section class="panel-section">
+          <h2>Export</h2>
+          <div class="button-row">
+            <button id="btn-export-gif" class="btn btn-accent">📥 GIF</button>
+            <button id="btn-export-png" class="btn btn-accent">📷 PNG</button>
+            <button id="btn-share" class="btn btn-accent">🔗 Share</button>
+          </div>
+          <div id="export-status" class="export-status"></div>
+        </section>
+      </aside>
+
+      <!-- Right panel: canvas -->
+      <main class="canvas-container">
+        <canvas id="linkage-canvas"></canvas>
+        <div id="solver-warning" class="solver-warning" style="display:none">
+          ⚠ Solver did not converge — dimensions may be invalid
+        </div>
+      </main>
+    </div>
+
+    <!-- Hidden offscreen canvas for GIF export -->
+    <canvas id="offscreen-canvas" style="display:none"></canvas>
+  </div>
+
+  <!-- gif.js from CDN (loaded async, used only for GIF export) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
+  <!-- App scripts -->
+  <script src="js/solver.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
