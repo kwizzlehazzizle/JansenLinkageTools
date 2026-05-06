@@ -158,21 +158,37 @@ foot_path = np.array(foot_path)
 # ── Animation ────────────────────────────────────────────────
 print("Generating animation frames...")
 
+# ── Bar colors (single source of truth) ─────────────────────
+# Colors sorted highest→lowest hex value, assigned b→m alphabetically
+BAR_COLORS = {
+    'b': '#ff6b6b',   # coral (highest)
+    'c': '#e8838b',   # pink
+    'd': '#f39c12',   # amber
+    'e': '#f1c40f',   # yellow
+    'f': '#e74c3c',   # red
+    'g': '#e67e22',   # orange
+    'h': '#9b59b6',   # purple
+    'i': '#3498db',   # blue
+    'j': '#1abc9c',   # teal
+    'k': '#2980b9',   # dark blue
+    'm': '#1a5276',   # navy (lowest)
+}
+
 # Define bar connections for drawing
-# Each tuple: (joint_index_a, joint_index_b, color, linewidth, bar_name, length)
-# Colors sorted highest→lowest hex value assigned to bars b→m (alphabetical order)
+# Each tuple: (joint_index_a, joint_index_b, linewidth, bar_name, length)
+# Color is looked up from BAR_COLORS
 BARS = [
-    (0, 3, '#ff6b6b', 4.0, 'b', LENGTHS['b']),   # coral (highest)
-    (0, 4, '#f39c12', 4.0, 'd', LENGTHS['d']),   # amber
-    (3, 4, '#f1c40f', 4.0, 'e', LENGTHS['e']),   # yellow
-    (0, 6, '#e8838b', 4.0, 'c', LENGTHS['c']),   # pink
-    (4, 5, '#e74c3c', 4.0, 'f', LENGTHS['f']),   # red
-    (5, 6, '#e67e22', 4.0, 'g', LENGTHS['g']),   # orange
-    (5, 7, '#9b59b6', 4.0, 'h', LENGTHS['h']),   # purple
-    (6, 7, '#3498db', 4.0, 'i', LENGTHS['i']),   # blue
-    (2, 6, '#2980b9', 4.0, 'k', LENGTHS['k']),   # dark blue
-    (2, 3, '#1abc9c', 4.0, 'j', LENGTHS['j']),   # teal
-    (1, 2, '#1a5276', 5.0, 'm', LENGTHS['m']),   # navy (lowest)
+    (0, 3, 4.0, 'b', LENGTHS['b']),
+    (0, 4, 4.0, 'd', LENGTHS['d']),
+    (3, 4, 4.0, 'e', LENGTHS['e']),
+    (0, 6, 4.0, 'c', LENGTHS['c']),
+    (4, 5, 4.0, 'f', LENGTHS['f']),
+    (5, 6, 4.0, 'g', LENGTHS['g']),
+    (5, 7, 4.0, 'h', LENGTHS['h']),
+    (6, 7, 4.0, 'i', LENGTHS['i']),
+    (2, 6, 4.0, 'k', LENGTHS['k']),
+    (2, 3, 4.0, 'j', LENGTHS['j']),
+    (1, 2, 5.0, 'm', LENGTHS['m']),
 ]
 
 # Compute axis limits
@@ -209,8 +225,8 @@ foot_line, = ax.plot([], [], color='#00ff88', linewidth=3.5, alpha=0.8)
 
 # Bar lines
 bar_lines = []
-for j1, j2, color, lw, name, length in BARS:
-    line, = ax.plot([], [], color=color, linewidth=lw, solid_capstyle='round')
+for j1, j2, lw, name, length in BARS:
+    line, = ax.plot([], [], color=BAR_COLORS[name], linewidth=lw, solid_capstyle='round')
     bar_lines.append((line, j1, j2))
 
 # ── Lengths table on the left side ───────────────────────────
@@ -222,15 +238,7 @@ table_title = table_ax.text(0.5, 0.95, 'Bar Lengths', ha='center', va='top',
                             fontsize=20, fontweight='bold', color='#ecf0f1',
                             transform=table_ax.transAxes)
 
-# Build table data with matching colors
-# Color map: bar_name -> hex color (highest→lowest hex, assigned b→m alphabetically)
-BAR_COLORS = {
-    'b': '#ff6b6b', 'c': '#e8838b', 'd': '#f39c12',
-    'e': '#f1c40f', 'f': '#e74c3c', 'g': '#e67e22',
-    'h': '#9b59b6', 'i': '#3498db', 'j': '#1abc9c',
-    'k': '#2980b9', 'm': '#1a5276',
-}
-
+# Build table data (colors referenced from BAR_COLORS defined above)
 bar_info = [
     ('Bar', 'Length'),
     ('─' * 12, '──────'),
