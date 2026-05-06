@@ -160,21 +160,19 @@ print("Generating animation frames...")
 
 # Define bar connections for drawing
 # Each tuple: (joint_index_a, joint_index_b, color, linewidth, bar_name, length)
+# Colors sorted highest→lowest hex value assigned to bars b→m (alphabetical order)
 BARS = [
-    # Structural bars (dark)
-    (0, 3, '#2c3e50', 2.5, 'b', LENGTHS['b']),
-    (0, 4, '#2c3e50', 2.5, 'd', LENGTHS['d']),
-    (0, 6, '#2c3e50', 2.5, 'c', LENGTHS['c']),
-    (3, 4, '#2c3e50', 2.5, 'e', LENGTHS['e']),
-    (4, 5, '#2c3e50', 2.5, 'f', LENGTHS['f']),
-    (5, 6, '#2c3e50', 2.5, 'g', LENGTHS['g']),
-    (5, 7, '#2c3e50', 2.5, 'h', LENGTHS['h']),
-    (6, 7, '#2c3e50', 2.5, 'i', LENGTHS['i']),
-    (2, 6, '#2c3e50', 2.5, 'k', LENGTHS['k']),   # k (crank tip J2 to J6)
-    # Connecting bar
-    (2, 3, '#2c3e50', 2.5, 'j', LENGTHS['j']),
-    # Crank (accent)
-    (1, 2, '#e74c3c', 3.0, 'm', LENGTHS['m']),   # m (crank)
+    (0, 3, '#ff6b6b', 4.0, 'b', LENGTHS['b']),   # coral (highest)
+    (0, 4, '#f39c12', 4.0, 'd', LENGTHS['d']),   # amber
+    (3, 4, '#f1c40f', 4.0, 'e', LENGTHS['e']),   # yellow
+    (0, 6, '#e8838b', 4.0, 'c', LENGTHS['c']),   # pink
+    (4, 5, '#e74c3c', 4.0, 'f', LENGTHS['f']),   # red
+    (5, 6, '#e67e22', 4.0, 'g', LENGTHS['g']),   # orange
+    (5, 7, '#9b59b6', 4.0, 'h', LENGTHS['h']),   # purple
+    (6, 7, '#3498db', 4.0, 'i', LENGTHS['i']),   # blue
+    (2, 6, '#2980b9', 4.0, 'k', LENGTHS['k']),   # dark blue
+    (2, 3, '#1abc9c', 4.0, 'j', LENGTHS['j']),   # teal
+    (1, 2, '#1a5276', 5.0, 'm', LENGTHS['m']),   # navy (lowest)
 ]
 
 # Compute axis limits
@@ -198,16 +196,16 @@ ax.axis('off')
 # Title
 title_text = "Jansen Linkage — Strandbeest Walking Mechanism"
 title = ax.text(0.5, 0.96, title_text, transform=ax.transAxes,
-                ha='center', va='top', fontsize=16, fontweight='bold',
+                ha='center', va='top', fontsize=20, fontweight='bold',
                 color='#ecf0f1', bbox=dict(boxstyle='round,pad=0.5',
                 facecolor='#16213e', edgecolor='#0f3460', alpha=0.9))
 
 # Angle label
-angle_label = ax.text(0.5, 0.90, '', transform=ax.transAxes,
-                      ha='center', va='top', fontsize=12, color='#f39c12')
+angle_label = ax.text(0.98, 0.90, '', transform=ax.transAxes,
+                      ha='right', va='top', fontsize=15, fontweight='bold', color='#f39c12')
 
 # Foot path trace (will be updated each frame)
-foot_line, = ax.plot([], [], color='#00ff88', linewidth=2, alpha=0.8)
+foot_line, = ax.plot([], [], color='#00ff88', linewidth=3.5, alpha=0.8)
 
 # Bar lines
 bar_lines = []
@@ -221,24 +219,32 @@ table_ax.axis('off')
 
 # Table header
 table_title = table_ax.text(0.5, 0.95, 'Bar Lengths', ha='center', va='top',
-                            fontsize=16, fontweight='bold', color='#ecf0f1',
+                            fontsize=20, fontweight='bold', color='#ecf0f1',
                             transform=table_ax.transAxes)
 
-# Build table data
+# Build table data with matching colors
+# Color map: bar_name -> hex color (highest→lowest hex, assigned b→m alphabetically)
+BAR_COLORS = {
+    'b': '#ff6b6b', 'c': '#e8838b', 'd': '#f39c12',
+    'e': '#f1c40f', 'f': '#e74c3c', 'g': '#e67e22',
+    'h': '#9b59b6', 'i': '#3498db', 'j': '#1abc9c',
+    'k': '#2980b9', 'm': '#1a5276',
+}
+
 bar_info = [
-    ('Bar', 'Endpoints', 'Length'),
-    ('─' * 12, '─' * 12, '──────'),
-    ('b', 'J0↔J3', f"{LENGTHS['b']:.1f}"),
-    ('c', 'J0↔J6', f"{LENGTHS['c']:.1f}"),
-    ('d', 'J0↔J4', f"{LENGTHS['d']:.1f}"),
-    ('e', 'J3↔J4', f"{LENGTHS['e']:.1f}"),
-    ('f', 'J4↔J5', f"{LENGTHS['f']:.1f}"),
-    ('g', 'J5↔J6', f"{LENGTHS['g']:.1f}"),
-    ('h', 'J5↔J7', f"{LENGTHS['h']:.1f}"),
-    ('i', 'J6↔J7', f"{LENGTHS['i']:.1f}"),
-    ('j', 'J2↔J3', f"{LENGTHS['j']:.1f}"),
-    ('k', 'J2↔J6', f"{LENGTHS['k']:.1f}"),
-    ('m', 'J1↔J2', f"{LENGTHS['m']:.1f}"),
+    ('Bar', 'Length'),
+    ('─' * 12, '──────'),
+    ('b', f"{LENGTHS['b']:.1f}"),
+    ('c', f"{LENGTHS['c']:.1f}"),
+    ('d', f"{LENGTHS['d']:.1f}"),
+    ('e', f"{LENGTHS['e']:.1f}"),
+    ('f', f"{LENGTHS['f']:.1f}"),
+    ('g', f"{LENGTHS['g']:.1f}"),
+    ('h', f"{LENGTHS['h']:.1f}"),
+    ('i', f"{LENGTHS['i']:.1f}"),
+    ('j', f"{LENGTHS['j']:.1f}"),
+    ('k', f"{LENGTHS['k']:.1f}"),
+    ('m', f"{LENGTHS['m']:.1f}"),
 ]
 
 # Draw table background
@@ -249,30 +255,24 @@ table_bg = table_ax.add_patch(plt.Rectangle((0.05, 0.02), 0.9, 0.88,
 # Draw table rows
 y_pos = 0.82
 row_height = 0.055
-for row_idx, (bar, endpoints, length) in enumerate(bar_info):
+for row_idx, (bar, length) in enumerate(bar_info):
     if row_idx == 0:  # Header row
         color = '#f39c12'
         weight = 'bold'
-        size = 14
+        size = 16
     elif row_idx == 1:  # Separator
         y_pos -= 0.01
         continue
     else:
-        # Color the crank row differently
-        if bar == 'm':
-            color = '#e74c3c'
-        else:
-            color = '#bdc3c7'
-        weight = 'normal'
-        size = 12
+        # Use the matching color from BAR_COLORS
+        color = BAR_COLORS.get(bar, '#bdc3c7')
+        weight = 'bold'
+        size = 14
 
-    table_ax.text(0.1, y_pos, bar, ha='left', va='center',
+    table_ax.text(0.15, y_pos, bar, ha='left', va='center',
                   fontsize=size, fontweight=weight, color=color,
                   transform=table_ax.transAxes, family='monospace')
-    table_ax.text(0.45, y_pos, endpoints, ha='center', va='center',
-                  fontsize=size, color=color,
-                  transform=table_ax.transAxes, family='monospace')
-    table_ax.text(0.88, y_pos, length, ha='right', va='center',
+    table_ax.text(0.75, y_pos, length, ha='right', va='center',
                   fontsize=size, color=color,
                   transform=table_ax.transAxes, family='monospace')
     y_pos -= row_height
@@ -292,7 +292,7 @@ for idx in [0, 1]:
 
 # Crank circle (green, shows rotation)
 crank_circle = Circle((0, 0), LENGTHS['m'], fill=False,
-                       color='#2ecc71', linewidth=2, linestyle='--', alpha=0.5)
+                       color='#2ecc71', linewidth=3, linestyle='--', alpha=0.5)
 ax.add_patch(crank_circle)
 
 frames_for_gif = []
