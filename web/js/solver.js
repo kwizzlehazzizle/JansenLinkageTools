@@ -266,7 +266,7 @@ const Solver = (() => {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  /* ── Pre-solve all frames (for GIF export) ───────────────── */
+  /* ── Pre-solve all frames ────────────────────────────────── */
 
   /**
    * Pre-compute all linkage positions for 0°–720°.

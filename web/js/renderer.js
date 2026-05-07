@@ -103,14 +103,18 @@ const Renderer = (() => {
    * @param {object} lengths - Current bar lengths
    * @param {number} angle - Current crank angle in degrees
    * @param {boolean} showFootPath - Whether to show the foot path trace
+   * @param {boolean} showTable - Whether to show the bar lengths table on canvas (default false)
+   * @param {string|null} highlightedBar - Bar name to highlight with a glow effect
    */
-  function draw(joints, footPath, lengths, angle, showFootPath = true) {
+  function draw(joints, footPath, lengths, angle, showFootPath = true, showTable = false, highlightedBar = null) {
     // Clear
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // Draw lengths table (left side)
-    drawTable(lengths);
+    // Draw lengths table (left side) — only shown during export
+    if (showTable) {
+      drawTable(lengths);
+    }
 
     // Draw title
     ctx.save();
@@ -119,6 +123,34 @@ const Renderer = (() => {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('Jansen Linkage — Strandbeest Walking Mechanism', canvasWidth / 2, 12);
+    ctx.restore();
+
+    // Draw pivot reference lines (gray dotted)
+    // Horizontal line: J0(0,0) → (a,0) showing the "a" distance
+    const [j0x, j0y] = toScreen(0, 0);
+    const [ax, ay] = toScreen(lengths.a, 0);
+    ctx.save();
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.5;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(j0x, j0y);
+    ctx.lineTo(ax, ay);
+    ctx.stroke();
+    ctx.restore();
+
+    // Vertical line: (a,0) → (a,l) showing the "l" distance
+    const [bx, by] = toScreen(lengths.a, lengths.l);
+    ctx.save();
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.5;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
     ctx.restore();
 
     // Draw crank circle (dashed)
@@ -161,6 +193,19 @@ const Renderer = (() => {
       ctx.strokeStyle = BAR_COLORS[name];
       ctx.lineWidth = lw;
       ctx.lineCap = 'round';
+
+      // If this bar is highlighted, draw a glow effect first
+      if (name === highlightedBar) {
+        ctx.shadowColor = BAR_COLORS[name];
+        ctx.shadowBlur = 20;
+        ctx.lineWidth = lw + 6;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);

@@ -4,7 +4,7 @@ Interactive web simulator for the 11-bar Jansen linkage (Strandbeest walking mec
 
 ## Running the App
 
-**You must serve the files over HTTP** — opening `index.html` directly with `file://` will not work because GIF export requires Web Workers, which browsers block on the `file://` protocol.
+You can open `index.html` directly in a browser, or serve it over HTTP:
 
 ### Quick Start (PowerShell)
 
@@ -37,7 +37,6 @@ npx serve
 - **Real-time animation** — play/pause with adjustable speed
 - **Foot path trace** — toggle the walking foot trajectory
 - **PNG export** — save the current frame
-- **GIF export** — generate a 720-frame animation (~30-60 seconds)
 - **Shareable URLs** — encode all dimensions in the URL for sharing
 
 ## License

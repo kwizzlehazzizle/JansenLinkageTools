@@ -23,6 +23,7 @@
   let footPath = [];          // accumulated foot path
   let animFrameId = null;
   let lastTimestamp = null;
+  let highlightedBar = null;  // bar name currently highlighted on hover
 
   // ── DOM refs ───────────────────────────────────────────────
   const canvas = document.getElementById('linkage-canvas');
@@ -43,6 +44,9 @@
   inputIds.forEach(id => {
     inputs[id] = document.getElementById('input-' + id);
   });
+
+  // Bar IDs that correspond to drawn bars on the canvas (a and l are pivot distances, not bars)
+  const BAR_HIGHLIGHT_IDS = ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm'];
 
   // ── Initialize ─────────────────────────────────────────────
   function init() {
@@ -85,6 +89,11 @@
     inputIds.forEach(id => {
       inputs[id].addEventListener('input', onDimensionChange);
       inputs[id].addEventListener('blur', onDimensionChange);
+      // Hover highlight for bars that have corresponding bars on the canvas
+      if (BAR_HIGHLIGHT_IDS.includes(id)) {
+        inputs[id].addEventListener('mouseenter', () => onBarHover(id));
+        inputs[id].addEventListener('mouseleave', onBarHoverOut);
+      }
     });
 
     // Angle slider
@@ -134,6 +143,21 @@
     solveAndRender();
   }
 
+  // ── Bar highlight on hover ─────────────────────────────────
+  function onBarHover(barName) {
+    highlightedBar = barName;
+    if (!isPlaying && currentJoints) {
+      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightedBar);
+    }
+  }
+
+  function onBarHoverOut() {
+    highlightedBar = null;
+    if (!isPlaying && currentJoints) {
+      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, null);
+    }
+  }
+
   // ── Solve and render current frame ─────────────────────────
   function solveAndRender() {
     const result = Solver.solveLinkage(currentAngle, lengths, prevGuess);
@@ -149,7 +173,7 @@
       solverWarning.style.display = 'block';
     }
 
-    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath);
+    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightedBar);
   }
 
   // ── Animation loop ─────────────────────────────────────────
@@ -205,7 +229,7 @@
     }
     Renderer.resize();
     if (currentJoints) {
-      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath);
+      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightedBar);
     }
   }
 
@@ -231,7 +255,12 @@
 
   // ── Export: PNG ────────────────────────────────────────────
   function exportPng() {
+    // Temporarily render with the table visible for the exported image
+    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, true);
     const dataUrl = canvas.toDataURL('image/png');
+    // Restore the normal view (table hidden)
+    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false);
+
     const link = document.createElement('a');
     link.download = 'jansen_linkage.png';
     link.href = dataUrl;

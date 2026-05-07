@@ -96,6 +96,24 @@ header .subtitle {
   justify-content: space-between;
   margin-bottom: 6px;
   gap: 8px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.input-group.highlighted {
+  animation: pulse-highlight 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    background: rgba(243, 156, 18, 0.08);
+    box-shadow: 0 0 6px rgba(243, 156, 18, 0.15);
+  }
+  50% {
+    background: rgba(243, 156, 18, 0.2);
+    box-shadow: 0 0 14px rgba(243, 156, 18, 0.35);
+  }
 }
 
 .input-group label {
