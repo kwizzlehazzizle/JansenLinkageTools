@@ -26,18 +26,15 @@
 
   // ── DOM refs ───────────────────────────────────────────────
   const canvas = document.getElementById('linkage-canvas');
-  const offscreenCanvas = document.getElementById('offscreen-canvas');
   const sliderAngle = document.getElementById('slider-angle');
   const sliderSpeed = document.getElementById('slider-speed');
   const angleDisplay = document.getElementById('angle-display');
   const speedDisplay = document.getElementById('speed-display');
   const btnPlay = document.getElementById('btn-play');
   const btnReset = document.getElementById('btn-reset');
-  const btnExportGif = document.getElementById('btn-export-gif');
   const btnExportPng = document.getElementById('btn-export-png');
   const btnShare = document.getElementById('btn-share');
   const chkFootpath = document.getElementById('chk-footpath');
-  const exportStatus = document.getElementById('export-status');
   const solverWarning = document.getElementById('solver-warning');
 
   // Input elements for each dimension
@@ -119,7 +116,6 @@
     });
 
     // Export buttons
-    btnExportGif.addEventListener('click', exportGif);
     btnExportPng.addEventListener('click', exportPng);
     btnShare.addEventListener('click', shareUrl);
   }
@@ -240,102 +236,6 @@
     link.download = 'jansen_linkage.png';
     link.href = dataUrl;
     link.click();
-  }
-
-  // ── Export: GIF ────────────────────────────────────────────
-  function exportGif() {
-    if (typeof GIF === 'undefined') {
-      exportStatus.textContent = '⚠ gif.js not loaded — check your connection';
-      return;
-    }
-
-    btnExportGif.disabled = true;
-    exportStatus.textContent = 'Solving 720 frames...';
-
-    // Use setTimeout to allow UI to update before heavy computation
-    setTimeout(() => {
-      const numFrames = 720;
-      const { frames, footPath: fullFootPath } = Solver.solveAllFrames(lengths, numFrames);
-
-      exportStatus.textContent = `Encoding ${numFrames} frames...`;
-
-      // Pause animation during export
-      const wasPlaying = isPlaying;
-      if (wasPlaying) {
-        isPlaying = false;
-        if (animFrameId) cancelAnimationFrame(animFrameId);
-      }
-
-      // Re-compute bounds and resize for consistent sizing
-      Renderer.computeBounds(frames.map(f => f.joints), 15);
-      Renderer.resize();
-
-      const gif = new GIF({
-        workers: 2,
-        quality: 10,
-        width: canvas.width,
-        height: canvas.height,
-        workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
-      });
-
-      let frameIdx = 0;
-      const accumulatedFoot = [];
-
-      function addFrame() {
-        if (frameIdx >= numFrames) {
-          // Final frame
-          gif.on('finished', (blob) => {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = 'jansen_linkage.gif';
-            link.href = url;
-            link.click();
-            URL.revokeObjectURL(url);
-
-            btnExportGif.disabled = false;
-            exportStatus.textContent = '✅ GIF exported!';
-            setTimeout(() => { exportStatus.textContent = ''; }, 3000);
-
-            // Restore animation state
-            if (wasPlaying) {
-              isPlaying = true;
-              btnPlay.textContent = '⏸ Pause';
-              lastTimestamp = performance.now();
-              animate();
-            } else {
-              solveAndRender();
-            }
-          });
-          gif.render();
-          return;
-        }
-
-        const angle = (frameIdx / numFrames) * 720;
-        const joints = frames[frameIdx].joints;
-        accumulatedFoot.push(frames[frameIdx].joints[7]);
-
-        // Draw to main canvas
-        Renderer.draw(joints, accumulatedFoot, lengths, angle, showFootPath);
-
-        // Capture from canvas
-        const imageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
-        gif.addFrame(imageData, { copy: true, delay: 50 });
-
-        frameIdx++;
-        if (frameIdx % 120 === 0) {
-          exportStatus.textContent = `Encoding frame ${frameIdx}/${numFrames}...`;
-        }
-
-        // Process in chunks to keep UI responsive
-        if (frameIdx % 60 === 0) {
-          setTimeout(addFrame, 0);
-        } else {
-          addFrame();
-        }
-      }
-
-      addFrame();
-    }, 50);
   }
 
   // ── Shareable URL ──────────────────────────────────────────

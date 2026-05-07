@@ -42,7 +42,7 @@ const Renderer = (() => {
    */
   function init(canvasEl) {
     canvas = canvasEl;
-    ctx = canvas.getContext('2d');
+    ctx = canvas.getContext('2d', { willReadFrequently: true });
   }
 
   /**
