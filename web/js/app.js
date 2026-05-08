@@ -23,7 +23,9 @@
   let footPath = [];          // accumulated foot path
   let animFrameId = null;
   let lastTimestamp = null;
-  let highlightedBar = null;  // bar name currently highlighted on hover
+  let highlightIntensities = {};       // barName → { current: 0..1, target: 0..1 }
+  let highlightLastTime = null;        // last time we updated highlight intensities
+  let currentHoveredBar = null;        // which bar input is currently under the mouse
 
   // ── DOM refs ───────────────────────────────────────────────
   const canvas = document.getElementById('linkage-canvas');
@@ -144,17 +146,109 @@
   }
 
   // ── Bar highlight on hover ─────────────────────────────────
+  let highlightAnimId = null;  // rAF handle for highlight animation when paused
+
   function onBarHover(barName) {
-    highlightedBar = barName;
+    // If another bar was hovered, start fading it out
+    if (currentHoveredBar && currentHoveredBar !== barName && highlightIntensities[currentHoveredBar]) {
+      highlightIntensities[currentHoveredBar].target = 0;
+    }
+
+    // Set new bar's target to 1 (fade in)
+    if (!highlightIntensities[barName]) {
+      highlightIntensities[barName] = { current: 0, target: 0 };
+    }
+    highlightIntensities[barName].target = 1;
+    currentHoveredBar = barName;
+    highlightLastTime = performance.now();
+
+    // Start animating the fade-in even when paused
     if (!isPlaying && currentJoints) {
-      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightedBar);
+      if (highlightAnimId) cancelAnimationFrame(highlightAnimId);
+      animateHighlight();
     }
   }
 
   function onBarHoverOut() {
-    highlightedBar = null;
-    if (!isPlaying && currentJoints) {
-      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, null);
+    // Set the previously hovered bar's target to 0 (fade out)
+    if (currentHoveredBar && highlightIntensities[currentHoveredBar]) {
+      highlightIntensities[currentHoveredBar].target = 0;
+    }
+    currentHoveredBar = null;
+    highlightLastTime = performance.now();
+    if (!isPlaying) {
+      if (highlightAnimId) cancelAnimationFrame(highlightAnimId);
+      fadeHighlight();
+    }
+  }
+
+  /**
+   * Update all highlight intensities toward their targets.
+   * Returns true if any bar is still transitioning.
+   */
+  function updateHighlightIntensity() {
+    const now = performance.now();
+    const dt = Math.min((now - (highlightLastTime || now)) / 1000, 0.1); // seconds, cap at 100ms
+    highlightLastTime = now;
+
+    let anyChanging = false;
+    for (const barName in highlightIntensities) {
+      const state = highlightIntensities[barName];
+      if (state.current < state.target) {
+        // Fading in over 0.25s
+        state.current += dt / 0.25;
+        if (state.current >= 1) state.current = 1;
+        anyChanging = true;
+      } else if (state.current > state.target) {
+        // Fading out over 1.0s
+        state.current -= dt / 1.0;
+        if (state.current <= 0) {
+          state.current = 0;
+          delete highlightIntensities[barName];
+        }
+        anyChanging = true;
+      }
+    }
+    return anyChanging;
+  }
+
+  /**
+   * Check if any bar still has an active highlight.
+   */
+  function hasActiveHighlights() {
+    for (const barName in highlightIntensities) {
+      if (highlightIntensities[barName].current > 0.005) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Animation loop for highlight when paused (fade-in).
+   */
+  function animateHighlight() {
+    if (!currentJoints) return;
+    updateHighlightIntensity();
+    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightIntensities);
+
+    // Keep animating while any bar is still transitioning
+    if (hasActiveHighlights()) {
+      highlightAnimId = requestAnimationFrame(animateHighlight);
+    }
+  }
+
+  /**
+   * Continue fading out highlights when paused.
+   */
+  function fadeHighlight() {
+    if (!currentJoints) return;
+    updateHighlightIntensity();
+    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightIntensities);
+
+    if (hasActiveHighlights()) {
+      requestAnimationFrame(fadeHighlight);
+    } else {
+      highlightIntensities = {};
+      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, {});
     }
   }
 
@@ -173,7 +267,8 @@
       solverWarning.style.display = 'block';
     }
 
-    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightedBar);
+    updateHighlightIntensity();
+    Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightIntensities);
   }
 
   // ── Animation loop ─────────────────────────────────────────
@@ -229,7 +324,7 @@
     }
     Renderer.resize();
     if (currentJoints) {
-      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightedBar);
+      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightIntensities);
     }
   }
 

@@ -104,9 +104,9 @@ const Renderer = (() => {
    * @param {number} angle - Current crank angle in degrees
    * @param {boolean} showFootPath - Whether to show the foot path trace
    * @param {boolean} showTable - Whether to show the bar lengths table on canvas (default false)
-   * @param {string|null} highlightedBar - Bar name to highlight with a glow effect
+   * @param {object} highlightIntensities - barName → { current: 0..1, target: 0..1 } for crossfade highlights
    */
-  function draw(joints, footPath, lengths, angle, showFootPath = true, showTable = false, highlightedBar = null) {
+  function draw(joints, footPath, lengths, angle, showFootPath = true, showTable = false, highlightIntensities = {}) {
     // Clear
     ctx.fillStyle = BG_COLOR;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -185,7 +185,32 @@ const Renderer = (() => {
       ctx.restore();
     }
 
-    // Draw bars
+    // First pass: draw glow effects for all highlighted bars (supports crossfade)
+    for (const barName in highlightIntensities) {
+      const intensity = highlightIntensities[barName].current;
+      if (intensity <= 0) continue;
+
+      const barDef = BARS.find(b => b[3] === barName);
+      if (!barDef) continue;
+      const [j1, j2, lw] = barDef;
+      const [x1, y1] = toScreen(joints[j1][0], joints[j1][1]);
+      const [x2, y2] = toScreen(joints[j2][0], joints[j2][1]);
+
+      ctx.save();
+      ctx.strokeStyle = BAR_COLORS[barName];
+      ctx.shadowColor = BAR_COLORS[barName];
+      ctx.shadowBlur = 20 * intensity;
+      ctx.lineWidth = lw + 6 * intensity;
+      ctx.globalAlpha = 0.5 * intensity;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Second pass: draw all bars normally
     for (const [j1, j2, lw, name] of BARS) {
       const [x1, y1] = toScreen(joints[j1][0], joints[j1][1]);
       const [x2, y2] = toScreen(joints[j2][0], joints[j2][1]);
@@ -193,19 +218,6 @@ const Renderer = (() => {
       ctx.strokeStyle = BAR_COLORS[name];
       ctx.lineWidth = lw;
       ctx.lineCap = 'round';
-
-      // If this bar is highlighted, draw a glow effect first
-      if (name === highlightedBar) {
-        ctx.shadowColor = BAR_COLORS[name];
-        ctx.shadowBlur = 20;
-        ctx.lineWidth = lw + 6;
-        ctx.globalAlpha = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
