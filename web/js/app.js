@@ -213,11 +213,12 @@
   }
 
   /**
-   * Check if any bar still has an active highlight.
+   * Check if any bar still has an active highlight (or is transitioning).
    */
   function hasActiveHighlights() {
     for (const barName in highlightIntensities) {
-      if (highlightIntensities[barName].current > 0.005) return true;
+      const state = highlightIntensities[barName];
+      if (Math.abs(state.current - state.target) > 0.005) return true;
     }
     return false;
   }
