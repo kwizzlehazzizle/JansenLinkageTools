@@ -246,8 +246,10 @@
     Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, highlightIntensities);
 
     if (hasActiveHighlights()) {
-      requestAnimationFrame(fadeHighlight);
+      highlightAnimId = requestAnimationFrame(fadeHighlight);
     } else {
+      highlightAnimId = null;
+      highlightAnimId = null;
       highlightIntensities = {};
       Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, {});
     }
