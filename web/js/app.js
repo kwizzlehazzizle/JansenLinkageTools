@@ -149,16 +149,23 @@
   let highlightAnimId = null;  // rAF handle for highlight animation when paused
 
   function onBarHover(barName) {
-    // If another bar was hovered, start fading it out
+    // If another bar was hovered, schedule it to fade out after reaching full (or immediately if already full)
     if (currentHoveredBar && currentHoveredBar !== barName && highlightIntensities[currentHoveredBar]) {
-      highlightIntensities[currentHoveredBar].target = 0;
+      const prev = highlightIntensities[currentHoveredBar];
+      if (prev.reachedFull) {
+        prev.target = 0;
+      } else {
+        prev.fadeOutAfterFull = true;
+      }
     }
 
     // Set new bar's target to 1 (fade in)
     if (!highlightIntensities[barName]) {
-      highlightIntensities[barName] = { current: 0, target: 0 };
+      highlightIntensities[barName] = { current: 0, target: 0, reachedFull: false, fadeOutAfterFull: false };
     }
     highlightIntensities[barName].target = 1;
+    highlightIntensities[barName].reachedFull = false;
+    highlightIntensities[barName].fadeOutAfterFull = false;
     currentHoveredBar = barName;
     highlightLastTime = performance.now();
 
@@ -170,9 +177,14 @@
   }
 
   function onBarHoverOut() {
-    // Set the previously hovered bar's target to 0 (fade out)
+    // Schedule the bar to fade out after reaching full (or immediately if already full)
     if (currentHoveredBar && highlightIntensities[currentHoveredBar]) {
-      highlightIntensities[currentHoveredBar].target = 0;
+      const state = highlightIntensities[currentHoveredBar];
+      if (state.reachedFull) {
+        state.target = 0;
+      } else {
+        state.fadeOutAfterFull = true;
+      }
     }
     currentHoveredBar = null;
     highlightLastTime = performance.now();
@@ -195,12 +207,19 @@
     for (const barName in highlightIntensities) {
       const state = highlightIntensities[barName];
       if (state.current < state.target) {
-        // Fading in over 0.25s
+        // Fading in over 0.25s (always completes — fade-in is irreversible)
         state.current += dt / 0.25;
-        if (state.current >= 1) state.current = 1;
+        if (state.current >= 1) {
+          state.current = 1;
+          state.reachedFull = true;
+          // If the mouse left before reaching full, start fading out now
+          if (state.fadeOutAfterFull) {
+            state.target = 0;
+          }
+        }
         anyChanging = true;
-      } else if (state.current > state.target) {
-        // Fading out over 1.0s
+      } else if (state.current > state.target && state.reachedFull) {
+        // Fading out over 1.0s (only after reaching full highlight)
         state.current -= dt / 1.0;
         if (state.current <= 0) {
           state.current = 0;
