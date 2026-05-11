@@ -26,6 +26,7 @@
   let highlightIntensities = {};       // barName → { current: 0..1, target: 0..1 }
   let highlightLastTime = null;        // last time we updated highlight intensities
   let currentHoveredBar = null;        // which bar input is currently under the mouse
+  let integerScale = 1;                // current integer scale factor for margin compensation
 
   // ── DOM refs ───────────────────────────────────────────────
   const canvas = document.getElementById('linkage-canvas');
@@ -348,7 +349,8 @@
         const r = Solver.solveLinkage(a, lengths, null);
         return r.joints;
       });
-      Renderer.computeBounds(allJoints, 15);
+      // Scale margin proportionally with integerScale so the linkage stays visually the same size
+      Renderer.computeBounds(allJoints, 15 * integerScale);
     }
     Renderer.resize();
     if (currentJoints) {
@@ -362,10 +364,24 @@
     currentAngle = 0;
     prevGuess = null;
     footPath = [];
+    integerScale = 1;
     updateInputsFromLengths();
     sliderAngle.value = 0;
     angleDisplay.textContent = '0.0°';
+
+    // Recompute view bounds for the reset lengths
+    const tempResult = Solver.solveLinkage(0, lengths, null);
+    if (tempResult.converged) {
+      const sampleAngles = [0, 90, 180, 270, 360, 450, 540, 630];
+      const allJoints = sampleAngles.map(a => {
+        const r = Solver.solveLinkage(a, lengths, null);
+        return r.joints;
+      });
+      Renderer.computeBounds(allJoints, 15 * integerScale);
+    }
+    Renderer.resize();
     solveAndRender();
+
     // Clear URL params
     window.history.replaceState(null, '', window.location.pathname);
   }
@@ -405,6 +421,9 @@
     sliderAngle.value = 0;
     angleDisplay.textContent = '0.0°';
 
+    // Track the integer scale factor for margin compensation
+    integerScale = scale;
+
     let changed = false;
     inputIds.forEach(id => {
       const scaled = Math.round(lengths[id] * scale);
@@ -419,6 +438,18 @@
 
     // Update inputs to reflect new integer values
     updateInputsFromLengths();
+
+    // Recompute view bounds for the new scaled lengths
+    const tempResult = Solver.solveLinkage(0, lengths, null);
+    if (tempResult.converged) {
+      const sampleAngles = [0, 90, 180, 270, 360, 450, 540, 630];
+      const allJoints = sampleAngles.map(a => {
+        const r = Solver.solveLinkage(a, lengths, null);
+        return r.joints;
+      });
+      Renderer.computeBounds(allJoints, 15 * integerScale);
+    }
+    Renderer.resize();
     solveAndRender();
   }
 
