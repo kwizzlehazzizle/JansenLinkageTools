@@ -214,8 +214,8 @@
     for (const barName in highlightIntensities) {
       const state = highlightIntensities[barName];
       if (state.current < state.target) {
-        // Fading in over 0.25s (always completes — fade-in is irreversible)
-        state.current += dt / 0.25;
+        // Fading in over 0.5s (always completes — fade-in is irreversible)
+        state.current += dt / 0.5;
         if (state.current >= 1) {
           state.current = 1;
           state.reachedFull = true;
@@ -226,8 +226,8 @@
         }
         anyChanging = true;
       } else if (state.current > state.target && state.reachedFull) {
-        // Fading out over 1.0s (only after reaching full highlight)
-        state.current -= dt / 1.0;
+        // Fading out over 2.0s (only after reaching full highlight)
+        state.current -= dt / 2.0;
         if (state.current <= 0) {
           state.current = 0;
           delete highlightIntensities[barName];
@@ -245,6 +245,8 @@
     for (const barName in highlightIntensities) {
       const state = highlightIntensities[barName];
       if (Math.abs(state.current - state.target) > 0.005) return true;
+      // Also keep animating if fadeOutAfterFull is pending (will trigger once reachedFull)
+      if (state.fadeOutAfterFull && state.current >= 0.005) return true;
     }
     return false;
   }
@@ -380,7 +382,25 @@
       Renderer.computeBounds(allJoints, 15 * integerScale);
     }
     Renderer.resize();
+
+    // Highlight all bars with auto fade-out
+    BAR_HIGHLIGHT_IDS.forEach(barName => {
+      if (!highlightIntensities[barName]) {
+        highlightIntensities[barName] = { current: 0, target: 0, reachedFull: false, fadeOutAfterFull: false };
+      }
+      highlightIntensities[barName].target = 1;
+      highlightIntensities[barName].reachedFull = false;
+      highlightIntensities[barName].fadeOutAfterFull = true;
+    });
+    highlightLastTime = performance.now();
+
     solveAndRender();
+
+    // Start animating the fade-in (and subsequent fade-out) even when paused
+    if (!isPlaying && currentJoints) {
+      if (highlightAnimId) cancelAnimationFrame(highlightAnimId);
+      animateHighlight();
+    }
 
     // Clear URL params
     window.history.replaceState(null, '', window.location.pathname);
@@ -450,7 +470,25 @@
       Renderer.computeBounds(allJoints, 15 * integerScale);
     }
     Renderer.resize();
+
+    // Highlight all bars with auto fade-out (they'll fade in, reach full, then fade out)
+    BAR_HIGHLIGHT_IDS.forEach(barName => {
+      if (!highlightIntensities[barName]) {
+        highlightIntensities[barName] = { current: 0, target: 0, reachedFull: false, fadeOutAfterFull: false };
+      }
+      highlightIntensities[barName].target = 1;
+      highlightIntensities[barName].reachedFull = false;
+      highlightIntensities[barName].fadeOutAfterFull = true;
+    });
+    highlightLastTime = performance.now();
+
     solveAndRender();
+
+    // Start animating the fade-in (and subsequent fade-out) even when paused
+    if (!isPlaying && currentJoints) {
+      if (highlightAnimId) cancelAnimationFrame(highlightAnimId);
+      animateHighlight();
+    }
   }
 
   // ── Shareable URL ──────────────────────────────────────────
