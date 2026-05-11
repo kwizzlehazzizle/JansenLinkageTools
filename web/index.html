@@ -85,6 +85,25 @@
           </div>
         </section>
 
+        <!-- Integer Approximation -->
+        <section class="panel-section">
+          <h2>Integer Approximation</h2>
+          <p class="section-desc">Scale all measurements by a factor, then round to the nearest integer for whole-number dimensions.</p>
+          <div class="input-group">
+            <label for="input-scale">
+              <span class="label-name">Scale</span>
+              <span class="label-desc">Factor</span>
+            </label>
+            <input type="number" id="input-scale" step="0.1" min="0.1" value="1.0">
+          </div>
+          <div class="button-row">
+            <button id="btn-apply-scale" class="btn btn-accent">Apply &amp; Round</button>
+          </div>
+          <div id="integer-warning" class="integer-warning" style="display:none">
+            ⚠ Rounding to integers may cause unpredictable effects on the foot path and gait behavior.
+          </div>
+        </section>
+
         <!-- Animation controls -->
         <section class="panel-section">
           <h2>Animation</h2>

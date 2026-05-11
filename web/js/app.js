@@ -39,6 +39,9 @@
   const btnShare = document.getElementById('btn-share');
   const chkFootpath = document.getElementById('chk-footpath');
   const solverWarning = document.getElementById('solver-warning');
+  const inputScale = document.getElementById('input-scale');
+  const btnApplyScale = document.getElementById('btn-apply-scale');
+  const integerWarning = document.getElementById('integer-warning');
 
   // Input elements for each dimension
   const inputIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
@@ -129,6 +132,9 @@
     // Export buttons
     btnExportPng.addEventListener('click', exportPng);
     btnShare.addEventListener('click', shareUrl);
+
+    // Integer approximation
+    btnApplyScale.addEventListener('click', applyIntegerApproximation);
   }
 
   // ── Dimension change handler ───────────────────────────────
@@ -382,6 +388,38 @@
     link.download = 'jansen_linkage.png';
     link.href = dataUrl;
     link.click();
+  }
+
+  // ── Integer Approximation ──────────────────────────────────
+  function applyIntegerApproximation() {
+    const scale = parseFloat(inputScale.value);
+    if (isNaN(scale) || scale <= 0) {
+      return;
+    }
+
+    // Reset to defaults first, then scale and round
+    lengths = { ...DEFAULT_LENGTHS };
+    currentAngle = 0;
+    prevGuess = null;
+    footPath = [];
+    sliderAngle.value = 0;
+    angleDisplay.textContent = '0.0°';
+
+    let changed = false;
+    inputIds.forEach(id => {
+      const scaled = Math.round(lengths[id] * scale);
+      if (scaled !== lengths[id]) {
+        changed = true;
+        lengths[id] = scaled;
+      }
+    });
+
+    // Show warning
+    integerWarning.style.display = 'block';
+
+    // Update inputs to reflect new integer values
+    updateInputsFromLengths();
+    solveAndRender();
   }
 
   // ── Shareable URL ──────────────────────────────────────────
