@@ -316,11 +316,11 @@
     const dt = (now - lastTimestamp) / 1000; // seconds
     lastTimestamp = now;
 
-    // Advance angle: 360° per 10 seconds at 1× speed
-    currentAngle += 360 * animSpeed * dt / 10;
-    if (currentAngle >= 720) {
-      currentAngle -= 720;
-      footPath = []; // Reset foot path after 2 revolutions
+    // Advance angle: 360° per 5 seconds at 1× speed
+    currentAngle += 360 * animSpeed * dt / 5;
+    if (currentAngle >= 360) {
+      currentAngle -= 360;
+      // Keep foot path across cycle boundaries
     }
 
     // Update slider
