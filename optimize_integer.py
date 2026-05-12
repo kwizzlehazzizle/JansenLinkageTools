@@ -11,13 +11,30 @@ Key performance strategies:
   4. Two-pass evaluation (cheap pass filters 90%+ of combinations)
   5. Min-heap top-N tracking (never materialize full score list)
 
-Usage:
-    python optimize_integer.py [--scale N] [--angles N] [--top N] [--sample N]
+Usage Examples:
+    # Shape-match only (default — find configs preserving original foot path shape)
+    python optimize_integer.py --scale 0.2
 
-    --scale   Integer scale factor (default: 10, giving ~40-unit bars)
+    # Flatness only (find configs with flattest ground contact)
+    python optimize_integer.py --scale 0.2 --flat
+
+    # Both shape + flatness (reports top-5 best shape AND top-5 flattest)
+    python optimize_integer.py --scale 0.2 --flat --top 5
+
+    # Quick test run (fewer angles, faster but coarser)
+    python optimize_integer.py --scale 0.2 --flat --quick
+
+    # Full resolution at larger scale
+    python optimize_integer.py --scale 1.0 --angles 360 --flat
+
+Arguments:
+    --scale   Scale factor (default: 0.2, use 1.0 for 1:1, 10 for 10x)
     --angles  Full evaluation angles (default: 360)
     --top     Number of best combos to report (default: 3)
     --sample  Cheap-pass sample angles (default: 12)
+    --flat    Also track and report flattest ground-contact configurations
+    --quick   Quick mode: 6 sample angles, 180 full angles
+    --export  Directory to export JSON config (default: .)
 """
 
 import argparse
@@ -316,6 +333,60 @@ def check_geometry_fast(L):
     return True
 
 
+@njit(cache=True)
+def compute_flatness(foot_path):
+    """
+    Compute flatness of ground contact phase.
+
+    Ground contact = angles where Y <= min_Y + 0.2 * Y_range
+    Flatness        = std(Y) during ground contact (lower = flatter)
+
+    Returns flatness value, or 1e10 if no ground points found.
+    """
+    n = foot_path.shape[0]
+    if n == 0:
+        return 1e10
+
+    # Find Y min and range
+    y_min = foot_path[0, 1]
+    y_max = foot_path[0, 1]
+    for i in range(1, n):
+        if foot_path[i, 1] < y_min:
+            y_min = foot_path[i, 1]
+        if foot_path[i, 1] > y_max:
+            y_max = foot_path[i, 1]
+    y_range = y_max - y_min
+    if y_range < 1e-10:
+        return 0.0  # perfectly flat (degenerate)
+
+    # Ground threshold
+    threshold = y_min + 0.2 * y_range
+
+    # Collect ground Y values
+    ground_sum = 0.0
+    ground_count = 0
+    for i in range(n):
+        if foot_path[i, 1] <= threshold:
+            ground_sum += foot_path[i, 1]
+            ground_count += 1
+
+    if ground_count < 2:
+        return 1e10
+
+    ground_mean = ground_sum / ground_count
+
+    # Compute std
+    ss = 0.0
+    for i in range(n):
+        if foot_path[i, 1] <= threshold:
+            diff = foot_path[i, 1] - ground_mean
+            ss += diff * diff
+    flatness = np.sqrt(ss / ground_count)
+
+    # Normalize by Y range so it's scale-independent (percentage)
+    return flatness / y_range * 100.0
+
+
 # ── Path comparison metric ───────────────────────────────────
 
 def compare_paths(ref_path, test_path):
@@ -446,7 +517,7 @@ def array_to_dict(L):
 
 
 def enumerate_combinations(base_lengths_dict, scale, top_n=3,
-                           full_angles=360, sample_angles=12):
+                           full_angles=360, sample_angles=12, flat=False):
     """
     Main enumeration: search all 3^13 perturbations.
     """
@@ -472,8 +543,9 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     baseline_result = compute_foot_path_jit(base_int_L.astype(np.float64), full_angles)
     baseline_path = baseline_result[0]
     baseline_score = compare_paths_simple(ref_path_full[0], baseline_path)
+    baseline_flat = compute_flatness(baseline_path) if flat else 0.0
     print(f"  Done in {time.time()-t0:.1f}s, score={baseline_score:.4f}, "
-          f"converged={baseline_result[1]}")
+          f"flatness={baseline_flat:.4f}, converged={baseline_result[1]}")
 
     # Downsample reference for quick pass
     ref_path_array = ref_path_full[0]  # extract path from (path, converged) tuple
@@ -492,12 +564,13 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     deltas = np.array([-1, 0, 1])
     heap_size = max(top_n * 20, 100)
 
-    # Min-heap: (score, index, perturbation_tuple, L_array)
-    # Using negative score for max-heap behavior (we want smallest scores)
-    # Actually, heapq is a min-heap, so smallest score is at index 0.
-    # We keep heap_size items and pop the largest when full.
-    # We'll use negative scores so heapq gives us the worst (largest) first for eviction.
-    heap = []  # (-score, idx, perturb_tuple, L_dict)
+    # Min-heap: (neg_score, index, perturbation_tuple, L_array)
+    # Using negative score so heapq gives us the worst (largest) first for eviction.
+    heap = []  # shape-match heap: (-score, idx, perturb_tuple, L_copy)
+
+    # Second heap for flatness tracking (when --flat is enabled)
+    # Lower flatness = better, so we use neg_flatness for same eviction logic
+    flat_heap = []  # (-flatness, idx, perturb_tuple, L_copy)
 
     eval_count = 0
     prune_count = 0
@@ -541,13 +614,22 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
         # Quick score
         score = compare_paths_simple(ref_sample, foot)
 
-        # Maintain top-N heap
+        # Maintain shape-match heap
         neg_score = -score
         if len(heap) < heap_size:
             heapq.heappush(heap, (neg_score, idx, tuple(perturb), L.copy()))
         elif neg_score > heap[0][0]:
             # This candidate is better than the worst in our heap
             heapq.heapreplace(heap, (neg_score, idx, tuple(perturb), L.copy()))
+
+        # Maintain flatness heap (when --flat is enabled)
+        if flat:
+            flatness = compute_flatness(foot)
+            neg_flatness = -flatness
+            if len(flat_heap) < heap_size:
+                heapq.heappush(flat_heap, (neg_flatness, idx, tuple(perturb), L.copy()))
+            elif neg_flatness > flat_heap[0][0]:
+                heapq.heapreplace(flat_heap, (neg_flatness, idx, tuple(perturb), L.copy()))
 
         eval_count += 1
 
@@ -572,7 +654,19 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     print(f"  Top {len(heap)} candidates tracked")
     print(f"{'='*60}")
 
-    # ── Pass 2: full-resolution evaluation ──
+    # ── Merge shape + flatness heaps for Pass 2 ──
+    if flat and flat_heap:
+        # Deduplicate by idx (perturbation index)
+        seen = set()
+        merged = []
+        for item in heap + flat_heap:
+            neg_s, item_idx, p, l = item
+            if item_idx not in seen:
+                seen.add(item_idx)
+                merged.append(item)
+        heap = merged
+        print(f"  Merged heaps: {len(merged)} unique candidates (shape: {len(heap)-len(flat_heap)}, flat: {len(flat_heap)})")
+
     print(f"\nPass 2: Full {full_angles}-angle evaluation of top {len(heap)} candidates...")
     t2 = time.time()
 
@@ -586,20 +680,30 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
         if np.any(np.isnan(foot)):
             continue
         full_score = compare_paths(ref_path_full[0], foot)
-        full_results.append((full_score, perturb, L.copy(), foot, result[1]))
+        flatness = compute_flatness(foot) if flat else 0.0
+        full_results.append((full_score, perturb, L.copy(), foot, result[1], flatness))
 
     # Sort by full score
     full_results.sort(key=lambda x: x[0])
     elapsed_pass2 = time.time() - t2
 
     # Add baseline
-    full_results.insert(0, (baseline_score, tuple(np.zeros(NUM_BARS, dtype=np.int32)),
-                           base_int_f.copy(), baseline_path, baseline_result[1]))
+    baseline_tuple = (baseline_score, tuple(np.zeros(NUM_BARS, dtype=np.int32)),
+                     base_int_f.copy(), baseline_path, baseline_result[1], baseline_flat)
+    full_results.insert(0, baseline_tuple)
     full_results.sort(key=lambda x: x[0])
 
     print(f"Pass 2 complete in {elapsed_pass2:.1f}s")
 
-    return full_results[:top_n], full_results, baseline_score, ref_path_full[0], base_int_f
+    top_n_results = full_results[:top_n]
+    # Also find top-N by flatness (when --flat is enabled)
+    if flat:
+        full_results_by_flat = sorted(full_results, key=lambda x: x[5])  # sort by flatness
+        top_flat_results = full_results_by_flat[:top_n]
+    else:
+        top_flat_results = None
+
+    return top_n_results, full_results, baseline_score, ref_path_full[0], base_int_f, top_flat_results
 
 
 # ── Reporting ────────────────────────────────────────────────
@@ -620,18 +724,19 @@ def format_perturbation(perturb, base_int):
     return ", ".join(parts)
 
 
-def print_results(results, base_int, top_n=3):
-    """Print ranked results."""
+def print_results(results, base_int, top_n=3, flat_results=None, flat=False):
+    """Print ranked results by shape-match, optionally also by flatness."""
     print("\n" + "=" * 80)
     print("  TOP RESULTS — Integer Jansen Linkage Optimization")
     print("=" * 80)
 
-    for rank, (score, perturb, L, foot, converged) in enumerate(results[:top_n]):
+    for rank, (score, perturb, L, foot, converged, flatness) in enumerate(results[:top_n]):
         is_baseline = all(p == 0 for p in perturb)
         label = " (BASELINE)" if is_baseline else ""
         conv_str = "✓" if converged else "✗ PARTIAL"
+        flat_str = f"  Flatness: {flatness:.4f}" if flat else ""
 
-        print(f"\n  #{rank + 1}{label}  —  Score: {score:.4f}  {conv_str}")
+        print(f"\n  #{rank + 1}{label}  —  Score: {score:.4f}{flat_str}  {conv_str}")
         print(f"  Bars: {format_perturbation(perturb, base_int)}")
 
         fp = foot
@@ -645,18 +750,32 @@ def print_results(results, base_int, top_n=3):
             ground = np.sum(fp[:, 1] <= fp[:, 1].min() + 0.2 * y_range) / len(fp)
             print(f"    Ground contact: ~{ground*100:.0f}% of cycle")
 
+    # Show top flatness results if --flat was enabled
+    if flat and flat_results:
+        print("\n" + "-" * 80)
+        print("  TOP FLATTEST CONFIGURATIONS")
+        print("-" * 80)
+        for rank, (score, perturb, L, foot, converged, flatness) in enumerate(flat_results[:top_n]):
+            is_baseline = all(p == 0 for p in perturb)
+            label = " (BASELINE)" if is_baseline else ""
+            conv_str = "✓" if converged else "✗ PARTIAL"
+
+            print(f"\n  Flat #{rank + 1}{label}  —  Flatness: {flatness:.4f}  Score: {score:.4f}  {conv_str}")
+            print(f"  Bars: {format_perturbation(perturb, base_int)}")
+
     print("\n" + "=" * 80)
 
 
 # ── Export ───────────────────────────────────────────────────
 
-def export_config(results, base_int, output_dir="."):
+def export_config(results, base_int, output_dir=".", flat_results=None, flat=False):
     """Export top configs as JSON."""
     configs = []
-    for rank, (score, perturb, L, foot, converged) in enumerate(results[:3]):
+    for rank, (score, perturb, L, foot, converged, flatness) in enumerate(results[:3]):
         config = {
             "rank": rank + 1,
             "score": round(float(score), 4),
+            "flatness": round(float(flatness), 4) if flat else None,
             "converged": bool(converged),
             "lengths": {BAR_KEYS[i]: int(round(L[i])) for i in range(NUM_BARS)},
             "perturbations": {BAR_KEYS[i]: int(perturb[i]) for i in range(NUM_BARS)},
@@ -672,11 +791,27 @@ def export_config(results, base_int, output_dir="."):
         configs.append(config)
 
     out_path = os.path.join(output_dir, "optimized_configs.json")
+    export_data = {
+        "baseline_integers": {BAR_KEYS[i]: int(round(base_int[i])) for i in range(NUM_BARS)},
+        "top_configs": configs,
+    }
+    if flat and flat_results:
+        # Add top flatness configs
+        flat_configs = []
+        for rank, (score, perturb, L, foot, converged, flatness) in enumerate(flat_results[:3]):
+            fc = {
+                "rank": rank + 1,
+                "score": round(float(score), 4),
+                "flatness": round(float(flatness), 4),
+                "converged": bool(converged),
+                "lengths": {BAR_KEYS[i]: int(round(L[i])) for i in range(NUM_BARS)},
+                "perturbations": {BAR_KEYS[i]: int(perturb[i]) for i in range(NUM_BARS)},
+            }
+            flat_configs.append(fc)
+        export_data["top_flat_configs"] = flat_configs
+
     with open(out_path, "w") as f:
-        json.dump({
-            "baseline_integers": {BAR_KEYS[i]: int(round(base_int[i])) for i in range(NUM_BARS)},
-            "top_configs": configs,
-        }, f, indent=2)
+        json.dump(export_data, f, indent=2)
     print(f"\nExported configs → {out_path}")
     return out_path
 
@@ -686,8 +821,8 @@ def export_config(results, base_int, output_dir="."):
 def main():
     parser = argparse.ArgumentParser(
         description="Optimize integer bar lengths for Jansen linkage")
-    parser.add_argument("--scale", type=float, default=10,
-                        help="Scale factor (default: 10, use 0.2 for 1/5th size)")
+    parser.add_argument("--scale", type=float, default=0.2,
+                        help="Scale factor (default: 0.2 for 1/5th size, use 10 for 10×)")
     parser.add_argument("--angles", type=int, default=360,
                         help="Full evaluation angles (default: 360)")
     parser.add_argument("--top", type=int, default=3,
@@ -698,6 +833,8 @@ def main():
                         help="Directory to export JSON (default: .)")
     parser.add_argument("--quick", action="store_true",
                         help="Quick mode: only 6 sample angles, smaller heap")
+    parser.add_argument("--flat", action="store_true",
+                        help="Also track and report configurations with flattest ground contact")
     args = parser.parse_args()
 
     if args.quick:
@@ -712,21 +849,23 @@ def main():
     print(f"  Combinations: {3**NUM_BARS:,} (3^{NUM_BARS})")
     print(f"  Evaluation: {args.sample}-angle quick → {args.angles}-angle full")
     print(f"  Numba JIT: {'enabled' if HAS_NUMBA else 'disabled — pip install numba'}")
+    print(f"  Flatness tracking: {'enabled' if args.flat else 'disabled'}")
     print("=" * 50)
     print()
 
-    top_results, all_results, baseline_score, ref_path, base_int = \
+    top_results, all_results, baseline_score, ref_path, base_int, top_flat = \
         enumerate_combinations(ORIGINAL, args.scale,
                                top_n=args.top,
                                full_angles=args.angles,
-                               sample_angles=args.sample)
+                               sample_angles=args.sample,
+                               flat=args.flat)
 
-    print_results(top_results, base_int, args.top)
-    export_config(top_results, base_int, args.export)
+    print_results(top_results, base_int, args.top, flat_results=top_flat, flat=args.flat)
+    export_config(top_results, base_int, args.export, flat_results=top_flat, flat=args.flat)
 
     # Baseline ranking
     baseline_rank = None
-    for i, (score, perturb, L, fp, conv) in enumerate(all_results):
+    for i, (score, perturb, L, fp, conv, flt) in enumerate(all_results):
         if all(p == 0 for p in perturb):
             baseline_rank = i + 1
             break
