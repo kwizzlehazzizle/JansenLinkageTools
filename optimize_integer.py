@@ -633,18 +633,22 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
 
         eval_count += 1
 
-        # Progress reporting
-        if eval_count - last_report >= 250_000:
+        # Progress reporting (every 25,000 combos)
+        if eval_count - last_report >= 25_000:
             elapsed = time.time() - t_start
             rate = eval_count / elapsed if elapsed > 0 else 0
             eta = (total - eval_count) / rate if rate > 0 else 0
             best_score = -heap[0][0] if heap else float('inf')
-            print(f"  [{eval_count:,}/{total:,}] "
+            best_flat = -flat_heap[0][0] if flat_heap else float('inf')
+            line = (f"  [{eval_count:,}/{total:,}] "
                   f"{eval_count/total*100:.1f}% | "
                   f"{rate:,.0f} combos/sec | "
                   f"ETA {eta/60:.1f}m | "
-                  f"Best: {best_score:.4f} | "
-                  f"Pruned: {prune_count:,} | NaN: {nan_count:,}")
+                  f"Best Shape: {best_score:.4f}")
+            if flat:
+                line += f" | Best Flatness: {best_flat:.4f}"
+            line += f" | Pruned: {prune_count:,} | NaN: {nan_count:,}"
+            print(line)
             last_report = eval_count
 
     elapsed_pass1 = time.time() - t_start
@@ -727,7 +731,7 @@ def format_perturbation(perturb, base_int):
 def print_results(results, base_int, top_n=3, flat_results=None, flat=False):
     """Print ranked results by shape-match, optionally also by flatness."""
     print("\n" + "=" * 80)
-    print("  TOP RESULTS — Integer Jansen Linkage Optimization")
+    print("  TOP RESULTS — Best Shape Match")
     print("=" * 80)
 
     for rank, (score, perturb, L, foot, converged, flatness) in enumerate(results[:top_n]):
@@ -736,7 +740,7 @@ def print_results(results, base_int, top_n=3, flat_results=None, flat=False):
         conv_str = "✓" if converged else "✗ PARTIAL"
         flat_str = f"  Flatness: {flatness:.4f}" if flat else ""
 
-        print(f"\n  #{rank + 1}{label}  —  Score: {score:.4f}{flat_str}  {conv_str}")
+        print(f"\n  #{rank + 1}{label}  —  Shape: {score:.4f}{flat_str}  {conv_str}")
         print(f"  Bars: {format_perturbation(perturb, base_int)}")
 
         fp = foot
@@ -752,15 +756,15 @@ def print_results(results, base_int, top_n=3, flat_results=None, flat=False):
 
     # Show top flatness results if --flat was enabled
     if flat and flat_results:
-        print("\n" + "-" * 80)
-        print("  TOP FLATTEST CONFIGURATIONS")
-        print("-" * 80)
+        print("\n" + "=" * 80)
+        print("  TOP RESULTS — Flattest Ground Contact")
+        print("=" * 80)
         for rank, (score, perturb, L, foot, converged, flatness) in enumerate(flat_results[:top_n]):
             is_baseline = all(p == 0 for p in perturb)
             label = " (BASELINE)" if is_baseline else ""
             conv_str = "✓" if converged else "✗ PARTIAL"
 
-            print(f"\n  Flat #{rank + 1}{label}  —  Flatness: {flatness:.4f}  Score: {score:.4f}  {conv_str}")
+            print(f"\n  #{rank + 1}{label}  —  Flatness: {flatness:.4f}  Shape: {score:.4f}  {conv_str}")
             print(f"  Bars: {format_perturbation(perturb, base_int)}")
 
     print("\n" + "=" * 80)
