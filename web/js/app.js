@@ -367,6 +367,12 @@
     prevGuess = null;
     footPath = [];
     integerScale = 1;
+
+    // Reset input step back to 0.1
+    inputIds.forEach(id => {
+      inputs[id].step = '0.1';
+    });
+
     updateInputsFromLengths();
     sliderAngle.value = 0;
     angleDisplay.textContent = '0.0°';
@@ -455,6 +461,11 @@
 
     // Show warning
     integerWarning.style.display = 'block';
+
+    // Switch input step to integer increments
+    inputIds.forEach(id => {
+      inputs[id].step = '1';
+    });
 
     // Update inputs to reflect new integer values
     updateInputsFromLengths();

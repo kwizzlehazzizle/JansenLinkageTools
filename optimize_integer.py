@@ -449,10 +449,13 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     print(f"Integer baseline: {array_to_dict(base_int_L)}")
     print()
 
-    # ── Compute reference path from original (float) lengths ──
-    print("Computing reference foot path (original float lengths)...")
+    # ── Compute reference path from scaled (float) lengths ──
+    # This is the ideal shape at the target scale; integer perturbations are compared against it
+    scaled_L = base_L * scale
+    print("Computing reference foot path (scaled float lengths)...")
+    print(f"  Scaled lengths: {array_to_dict(np.round(scaled_L, 1))}")
     t0 = time.time()
-    ref_path_full = compute_foot_path_jit(base_L.astype(np.float64), full_angles)
+    ref_path_full = compute_foot_path_jit(scaled_L.astype(np.float64), full_angles)
     print(f"  Done in {time.time()-t0:.1f}s, "
           f"converged={ref_path_full[1]}, shape={ref_path_full[0].shape}")
 
