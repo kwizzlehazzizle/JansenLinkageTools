@@ -337,11 +337,14 @@ def compare_paths(ref_path, test_path):
         return 1e10
     tst = tst * (ref_size / tst_size)
 
-    # Angle-by-angle RMS error
+    # Angle-by-angle RMS error (normalized by reference size → percentage)
     rms = np.sqrt(np.mean((ref - tst)**2))
+    if ref_size < 1e-10:
+        return 1e10
+    rms_pct = rms / ref_size  # percentage of reference path size
 
-    if rms > 5.0:
-        return rms * 100 + 100  # early reject for very bad paths
+    if rms_pct > 0.05:  # >5% deviation
+        return rms_pct * 100 + 100  # early reject for very bad paths
 
     # ── Gait quality metrics ──
     # Height range
@@ -367,7 +370,7 @@ def compare_paths(ref_path, test_path):
     ground_err = abs(ref_ground - tst_ground)
 
     # Composite score
-    return rms * 100 + height_err * 30 + stride_err * 30 + ground_err * 20
+    return rms_pct * 100 + height_err * 30 + stride_err * 30 + ground_err * 20
 
 
 # ── Numba-compatible path comparison (for JIT path) ──────────
@@ -423,7 +426,11 @@ def compare_paths_simple(ref_path, test_path):
         ss += dx*dx + dy*dy
     rms = np.sqrt(ss / n)
 
-    return rms * 100
+    # Normalize by reference path size so scores are scale-independent (percentage)
+    # ref_size = diagonal of the bounding box of the centered reference path
+    if ref_size < 1e-10:
+        return 1e10
+    return (rms / ref_size) * 100.0
 
 
 # ── Combination enumeration ──────────────────────────────────
