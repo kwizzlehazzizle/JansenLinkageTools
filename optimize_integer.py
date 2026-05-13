@@ -1,8 +1,8 @@
 """
 Jansen Linkage Integer Optimization
 =====================================
-Given that Jansen linkages are very sensitive to bar length changes, this script 
-exhaustively searches all integer perturbations of the original bar lengths (±1 unit) 
+Given that Jansen linkages are very sensitive to bar length changes, this script
+exhaustively searches all integer perturbations of the original bar lengths (±1 unit)
 to find the best matches to the ideal foot path shape.
 This is useful for building Jansen linkages in Minecraft, Lego, or other discrete media.
 
@@ -273,6 +273,8 @@ def compute_foot_path_jit(L, num_angles):
         x, converged, cost, J7x, J7y = solve_single_angle(theta, L, guess)
         foot_path[idx, 0] = J7x
         foot_path[idx, 1] = J7y
+        if converged:
+            guess = x  # carry solution forward as initial guess for next angle
         if not converged:
             all_converged = False
 
@@ -299,39 +301,12 @@ def check_geometry_fast(L):
     if g + h <= i or g + i <= h or h + i <= g:
         return False
 
-    # Loop J0-J3-J4: e < b + d (triangle inequality with J0)
+    # Loop J0-J3-J4: triangle inequalities
     if e >= b + d:
         return False
-
-    # Loop J0-J3-J4: b < e + d
     if b >= e + d:
         return False
-
-    # Loop J0-J3-J4: d < b + e
     if d >= b + e:
-        return False
-
-    # Triangle J0-J2-J6: c + k > dist(J0,J2)
-    # dist(J0,J2) ranges from |m - a| to m + a (J2 circles around J1=[a,l])
-    # Conservative bound: dist(J0,J2) <= m + sqrt(a^2 + l^2)
-    max_dist_J0_J2 = m + np.sqrt(a*a + ll*ll)
-    if c + k <= max_dist_J0_J2:
-        # Could still work at some angles, skip this check (too conservative)
-        pass
-    # Minimum bound: dist(J0,J2) >= 0, so c+k > 0 (already checked)
-
-    # Triangle J0-J2-J3: j + b > dist(J0,J2)
-    # Same conservative reasoning
-    # j + b should be reasonably large
-    # Skip as it depends on angle
-
-    # Reachability: crank must reach J3 via bar j
-    # m + j > b (J2 can reach J3 with some slack)
-    # This is angle-dependent, skip
-
-    # Bar f (J4-J5) + g (J5-J6) must reach J4 to J6
-    # Max dist(J4,J6) <= d + c (both connected to J0)
-    if f + g < 0:  # trivial, but kept for structure
         return False
 
     return True
@@ -565,16 +540,13 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     print(f"  Numba: {'enabled' if HAS_NUMBA else 'disabled (install numba for ~50x speedup)'}")
     print()
 
-    deltas = np.array([-1, 0, 1])
     heap_size = max(top_n * 20, 100)
 
-    # Min-heap: (neg_score, index, perturbation_tuple, L_array)
-    # Using negative score so heapq gives us the worst (largest) first for eviction.
-    heap = []  # shape-match heap: (-score, idx, perturb_tuple, L_copy)
+    # Min-heap stores (neg_score, idx, perturbation_tuple) — L is reconstructed from perturb in Pass 2
+    heap = []  # shape-match heap
 
-    # Second heap for flatness tracking (when --flat is enabled)
-    # Lower flatness = better, so we use neg_flatness for same eviction logic
-    flat_heap = []  # (-flatness, idx, perturb_tuple, L_copy)
+    # Second heap for flatness tracking
+    flat_heap = []  # (-flatness, idx, perturbation_tuple)
 
     eval_count = 0
     prune_count = 0
@@ -585,25 +557,27 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     # Precompute base_int_L as float for solver
     base_int_f = base_int_L.astype(np.float64)
 
-    for idx in range(total):
-        # Decode base-3 index to perturbation
-        perturb = np.zeros(NUM_BARS, dtype=np.int32)
-        tmp = idx
-        for b in range(NUM_BARS):
-            perturb[b] = deltas[tmp % 3]
-            tmp //= 3
+    # Iterative odometer: perturbions cycle through [-1, 0, 1] per bar
+    # Start at [-1, -1, ..., -1] (index 1, skipping all-zero at index 0)
+    perturb = np.full(NUM_BARS, -1, dtype=np.int32)
 
-        # Skip zero perturbation
-        if np.all(perturb == 0):
-            eval_count += 1
-            continue
+    # Account for the skipped all-zero combination
+    eval_count += 1
 
+    for idx in range(1, total):
         # Build perturbed lengths
         L = base_int_f + perturb.astype(np.float64)
 
         # Fast geometric pruning
         if not check_geometry_fast(L):
             prune_count += 1
+
+            # Advance odometer
+            for b in range(NUM_BARS - 1, -1, -1):
+                perturb[b] += 1
+                if perturb[b] <= 1:
+                    break
+                perturb[b] = -1
             continue
 
         # ── Pass 1: cheap sample evaluation ──
@@ -613,26 +587,33 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
         # Check for NaN (solver failure)
         if np.any(np.isnan(foot)):
             nan_count += 1
+
+            # Advance odometer
+            for b in range(NUM_BARS - 1, -1, -1):
+                perturb[b] += 1
+                if perturb[b] <= 1:
+                    break
+                perturb[b] = -1
             continue
 
         # Quick score
         score = compare_paths_simple(ref_sample, foot)
+        perturb_tuple = tuple(perturb)
 
-        # Maintain shape-match heap
+        # Maintain shape-match heap (store perturb only, reconstruct L in Pass 2)
         neg_score = -score
         if len(heap) < heap_size:
-            heapq.heappush(heap, (neg_score, idx, tuple(perturb), L.copy()))
+            heapq.heappush(heap, (neg_score, idx, perturb_tuple))
         elif neg_score > heap[0][0]:
-            # This candidate is better than the worst in our heap
-            heapq.heapreplace(heap, (neg_score, idx, tuple(perturb), L.copy()))
+            heapq.heapreplace(heap, (neg_score, idx, perturb_tuple))
 
         # Maintain flatness heap (always on)
         flatness = compute_flatness(foot)
         neg_flatness = -flatness
         if len(flat_heap) < heap_size:
-            heapq.heappush(flat_heap, (neg_flatness, idx, tuple(perturb), L.copy()))
+            heapq.heappush(flat_heap, (neg_flatness, idx, perturb_tuple))
         elif neg_flatness > flat_heap[0][0]:
-            heapq.heapreplace(flat_heap, (neg_flatness, idx, tuple(perturb), L.copy()))
+            heapq.heapreplace(flat_heap, (neg_flatness, idx, perturb_tuple))
 
         eval_count += 1
 
@@ -652,6 +633,13 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
             print(line)
             last_report = eval_count
 
+        # Advance odometer for next iteration
+        for b in range(NUM_BARS - 1, -1, -1):
+            perturb[b] += 1
+            if perturb[b] <= 1:
+                break
+            perturb[b] = -1
+
     elapsed_pass1 = time.time() - t_start
     print(f"\n{'='*60}")
     print(f"Pass 1 complete in {elapsed_pass1:.1f}s")
@@ -665,7 +653,7 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
         seen = set()
         merged = []
         for item in heap + flat_heap:
-            neg_s, item_idx, p, l = item
+            neg_s, item_idx, p = item  # L is reconstructed from p in Pass 2
             if item_idx not in seen:
                 seen.add(item_idx)
                 merged.append(item)
@@ -679,14 +667,16 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     heap.sort(key=lambda x: x[0])  # smallest -score first = best score first
 
     full_results = []
-    for rank, (neg_score, idx, perturb, L) in enumerate(heap):
+    for rank, (neg_score, idx, perturb) in enumerate(heap):
+        # Reconstruct L from perturbation tuple
+        L = base_int_f + np.array(perturb, dtype=np.float64)
         result = compute_foot_path_jit(L, full_angles)
         foot = result[0]
         if np.any(np.isnan(foot)):
             continue
         full_score = compare_paths(ref_path_full[0], foot)
         flatness = compute_flatness(foot)
-        full_results.append((full_score, perturb, L.copy(), foot, result[1], flatness))
+        full_results.append((full_score, perturb, L, foot, result[1], flatness))
 
     # Sort by full score
     full_results.sort(key=lambda x: x[0])
