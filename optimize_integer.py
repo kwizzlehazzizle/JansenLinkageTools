@@ -851,8 +851,8 @@ def main():
                         help="Number of best combos to report (default: 3)")
     parser.add_argument("--sample", type=int, default=12,
                         help="Cheap-pass sample angles (default: 12)")
-    parser.add_argument("--export", type=str, default=".",
-                        help="Directory to export JSON (default: .)")
+    parser.add_argument("--export", type=str, nargs="?", const=".", default=None,
+                        help="Export JSON config (use with directory path, or no arg for current dir)")
     parser.add_argument("--quick", action="store_true",
                         help="Quick mode: only 6 sample angles, smaller heap")
     args = parser.parse_args()
@@ -879,7 +879,8 @@ def main():
                                sample_angles=args.sample)
 
     print_results(top_results, base_int, args.top, flat_results=top_flat)
-    export_config(top_results, base_int, args.export, flat_results=top_flat)
+    if args.export is not None:
+        export_config(top_results, base_int, args.export, flat_results=top_flat)
 
     # Baseline ranking
     baseline_rank = None
