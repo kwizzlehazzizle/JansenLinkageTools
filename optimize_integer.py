@@ -713,6 +713,7 @@ _BOLD = "\033[1m"
 _GREEN = "\033[32m"
 _CYAN = "\033[36m"
 _YELLOW = "\033[33m"
+_RED = "\033[31m"
 _RESET = "\033[0m"
 
 def format_perturbation(perturb, base_int):
@@ -734,13 +735,13 @@ def format_perturbation(perturb, base_int):
 def print_results(results, base_int, top_n=3, flat_results=None):
     """Print ranked results by shape-match and flatness."""
     print("\n" + "=" * 80)
-    print(f"  {_GREEN}TOP RESULTS — Best Shape Match{_RESET}")
+    print(f"  {_GREEN}TOP RESULTS — Best Shape Match (Lower score is better){_RESET}")
     print("=" * 80)
 
     for rank, (score, perturb, L, foot, converged, flatness) in enumerate(results[:top_n]):
         is_baseline = all(p == 0 for p in perturb)
         label = " (BASELINE)" if is_baseline else ""
-        conv_str = "✓" if converged else "✗ PARTIAL"
+        conv_str = f"{_GREEN}✓{_RESET}" if converged else f"{_RED}✗ PARTIAL{_RESET}"
 
         print(f"\n  #{rank + 1}{label}  —  {_GREEN}{_BOLD}Shape: {score:.4f}{_RESET}  Flatness: {flatness:.4f}  {conv_str}")
         print(f"  Bars: {format_perturbation(perturb, base_int)}")
@@ -748,22 +749,24 @@ def print_results(results, base_int, top_n=3, flat_results=None):
         fp = foot
         x_range = _ptp(fp[:, 0])
         y_range = _ptp(fp[:, 1])
-        print(f"  Foot path:")
-        print(f"    X: [{fp[:,0].min():.1f}, {fp[:,0].max():.1f}]  stride ≈ {x_range:.1f}")
-        print(f"    Y: [{fp[:,1].min():.1f}, {fp[:,1].max():.1f}]  lift  ≈ {y_range:.1f}")
-
+        ground_pct = 0.0
         if y_range > 1e-6:
-            ground = np.sum(fp[:, 1] <= fp[:, 1].min() + 0.2 * y_range) / len(fp)
-            print(f"    Ground contact: ~{ground*100:.0f}% of cycle")
+            ground_pct = np.sum(fp[:, 1] <= fp[:, 1].min() + 0.2 * y_range) / len(fp) * 100
+        print(f"  Foot path: "
+              f"X: [{fp[:,0].min():.1f}, {fp[:,0].max():.1f}] stride ≈ {x_range:.1f} "
+              f"- "
+              f"Y: [{fp[:,1].min():.1f}, {fp[:,1].max():.1f}] lift ≈ {y_range:.1f} "
+              f"- "
+              f"Ground contact: ~{ground_pct:.0f}%")
 
     # Show top flatness results
     print("\n" + "=" * 80)
-    print(f"  {_CYAN}TOP RESULTS — Flattest Ground Contact{_RESET}")
+    print(f"  {_CYAN}TOP RESULTS — Flattest Ground Contact (Lower score is better){_RESET}")
     print("=" * 80)
     for rank, (score, perturb, L, foot, converged, flatness) in enumerate(flat_results[:top_n]):
         is_baseline = all(p == 0 for p in perturb)
         label = " (BASELINE)" if is_baseline else ""
-        conv_str = "✓" if converged else "✗ PARTIAL"
+        conv_str = f"{_GREEN}✓{_RESET}" if converged else f"{_RED}✗ PARTIAL{_RESET}"
 
         print(f"\n  #{rank + 1}{label}  —  {_CYAN}{_BOLD}Flatness: {flatness:.4f}{_RESET}  Shape: {score:.4f}  {conv_str}")
         print(f"  Bars: {format_perturbation(perturb, base_int)}")
@@ -771,13 +774,15 @@ def print_results(results, base_int, top_n=3, flat_results=None):
         fp = foot
         x_range = _ptp(fp[:, 0])
         y_range = _ptp(fp[:, 1])
-        print(f"  Foot path:")
-        print(f"    X: [{fp[:,0].min():.1f}, {fp[:,0].max():.1f}]  stride ≈ {x_range:.1f}")
-        print(f"    Y: [{fp[:,1].min():.1f}, {fp[:,1].max():.1f}]  lift  ≈ {y_range:.1f}")
-
+        ground_pct = 0.0
         if y_range > 1e-6:
-            ground = np.sum(fp[:, 1] <= fp[:, 1].min() + 0.2 * y_range) / len(fp)
-            print(f"    Ground contact: ~{ground*100:.0f}% of cycle")
+            ground_pct = np.sum(fp[:, 1] <= fp[:, 1].min() + 0.2 * y_range) / len(fp) * 100
+        print(f"  Foot path: "
+              f"X: [{fp[:,0].min():.1f}, {fp[:,0].max():.1f}] stride ≈ {x_range:.1f} "
+              f"- "
+              f"Y: [{fp[:,1].min():.1f}, {fp[:,1].max():.1f}] lift ≈ {y_range:.1f} "
+              f"- "
+              f"Ground contact: ~{ground_pct:.0f}%")
 
     print("\n" + "=" * 80)
 
