@@ -1,8 +1,10 @@
 """
 Jansen Linkage Integer Optimization
 =====================================
-Finds optimal integer bar-length perturbations (-1, 0, +1 per bar) for
-building Jansen linkages in Minecraft, Lego, or other discrete media.
+Given that Jansen linkages are very sensitive to bar length changes, this script 
+exhaustively searches all integer perturbations of the original bar lengths (±1 unit) 
+to find the best matches to the ideal foot path shape.
+This is useful for building Jansen linkages in Minecraft, Lego, or other discrete media.
 
 Reports two rankings for every run:
   • Best Shape Match  — closest to the original foot path shape
@@ -12,7 +14,7 @@ Both shape and flatness are always tracked in Pass 1 and reported in the final o
 
 Key performance strategies:
   1. Numba JIT compilation of the solver (10-50x speedup)
-  2. Aggressive geometric pruning (reject impossible combos before solving)
+  2. Aggressive geometric pruning (reject impossible combos before solving) Most common with very small ratios like 0.1x where some bars become = 0
   3. Continuation solving (neighbouring angles share initial guess)
   4. Two-pass evaluation (cheap pass filters 90%+ of combinations)
   5. Dual min-heap top-N tracking (shape + flatness, never materialize full list)
@@ -22,7 +24,7 @@ Usage Examples:
     python optimize_integer.py --scale 0.2
 
     # Show more results
-    python optimize_integer.py --scale 0.2 --top 5
+    python optimize_integer.py --scale 0.2 --top 10
 
     # Quick test run (fewer angles, faster but coarser)
     python optimize_integer.py --scale 0.2 --quick
@@ -741,7 +743,7 @@ def print_results(results, base_int, top_n=3, flat_results=None):
     for rank, (score, perturb, L, foot, converged, flatness) in enumerate(results[:top_n]):
         is_baseline = all(p == 0 for p in perturb)
         label = " (BASELINE)" if is_baseline else ""
-        conv_str = f"{_GREEN}✓{_RESET}" if converged else f"{_RED}✗ PARTIAL{_RESET}"
+        conv_str = f"{_GREEN}✓ GOOD{_RESET}" if converged else f"{_RED}✗ DOES NOT CONVERGE{_RESET}"
 
         print(f"\n  #{rank + 1}{label}  —  {_GREEN}{_BOLD}Shape: {score:.4f}{_RESET}  Flatness: {flatness:.4f}  {conv_str}")
         print(f"  Bars: {format_perturbation(perturb, base_int)}")
@@ -766,7 +768,7 @@ def print_results(results, base_int, top_n=3, flat_results=None):
     for rank, (score, perturb, L, foot, converged, flatness) in enumerate(flat_results[:top_n]):
         is_baseline = all(p == 0 for p in perturb)
         label = " (BASELINE)" if is_baseline else ""
-        conv_str = f"{_GREEN}✓{_RESET}" if converged else f"{_RED}✗ PARTIAL{_RESET}"
+        conv_str = f"{_GREEN}✓ GOOD{_RESET}" if converged else f"{_RED}✗ DOES NOT CONVERGE{_RESET}"
 
         print(f"\n  #{rank + 1}{label}  —  {_CYAN}{_BOLD}Flatness: {flatness:.4f}{_RESET}  Shape: {score:.4f}  {conv_str}")
         print(f"  Bars: {format_perturbation(perturb, base_int)}")
