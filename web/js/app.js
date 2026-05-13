@@ -54,6 +54,34 @@
   // Bar IDs that correspond to drawn bars on the canvas (a and l are pivot distances, not bars)
   const BAR_HIGHLIGHT_IDS = ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm'];
 
+  // ── Flash helpers (sidebar + button, matches canvas crossfade) ──
+  function flashSidebarBars() {
+    // Flash the input-group rows for each bar length
+    BAR_HIGHLIGHT_IDS.forEach(id => {
+      const row = inputs[id].closest('.input-group');
+      if (row) {
+        row.classList.remove('flash-highlight');
+        void row.offsetWidth; // force reflow to restart animation
+        row.classList.add('flash-highlight');
+        row.addEventListener('animationend', () => row.classList.remove('flash-highlight'), { once: true });
+      }
+    });
+    // Flash the slider value spans in the animation panel
+    [angleDisplay, speedDisplay].forEach(el => {
+      el.classList.remove('flash-value');
+      void el.offsetWidth;
+      el.classList.add('flash-value');
+      el.addEventListener('animationend', () => el.classList.remove('flash-value'), { once: true });
+    });
+  }
+
+  function flashButton(btnEl) {
+    btnEl.classList.remove('flash-button');
+    void btnEl.offsetWidth;
+    btnEl.classList.add('flash-button');
+    btnEl.addEventListener('animationend', () => btnEl.classList.remove('flash-button'), { once: true });
+  }
+
   // ── Initialize ─────────────────────────────────────────────
   function init() {
     // Initialize renderer
@@ -95,8 +123,8 @@
     inputIds.forEach(id => {
       inputs[id].addEventListener('input', onDimensionChange);
       inputs[id].addEventListener('blur', onDimensionChange);
-      // Hover highlight for bars that have corresponding bars on the canvas
-      if (BAR_HIGHLIGHT_IDS.includes(id)) {
+      // Hover highlight for bars + pivot distances (a and l)
+      if (BAR_HIGHLIGHT_IDS.includes(id) || id === 'a' || id === 'l') {
         inputs[id].addEventListener('mouseenter', () => onBarHover(id));
         inputs[id].addEventListener('mouseleave', onBarHoverOut);
       }
@@ -408,6 +436,10 @@
       animateHighlight();
     }
 
+    // Flash sidebar bars + button
+    flashSidebarBars();
+    flashButton(btnReset);
+
     // Clear URL params
     window.history.replaceState(null, '', window.location.pathname);
   }
@@ -500,6 +532,10 @@
       if (highlightAnimId) cancelAnimationFrame(highlightAnimId);
       animateHighlight();
     }
+
+    // Flash sidebar bars + button
+    flashSidebarBars();
+    flashButton(btnApplyScale);
   }
 
   // ── Shareable URL ──────────────────────────────────────────

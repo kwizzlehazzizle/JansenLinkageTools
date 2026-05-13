@@ -125,32 +125,46 @@ const Renderer = (() => {
     ctx.fillText('Jansen Linkage — Strandbeest Walking Mechanism', canvasWidth / 2, 12);
     ctx.restore();
 
-    // Draw pivot reference lines (gray dotted)
+    // Draw pivot reference lines (gray dotted, glow on hover — no color change)
+    const PIVOT_COLOR = '#888888';
+
     // Horizontal line: J0(0,0) → (a,0) showing the "a" distance
     const [j0x, j0y] = toScreen(0, 0);
     const [ax, ay] = toScreen(lengths.a, 0);
+    const aIntensity = (highlightIntensities['a'] && highlightIntensities['a'].current) || 0;
     ctx.save();
-    ctx.strokeStyle = '#888888';
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = PIVOT_COLOR;
+    ctx.lineWidth = 1.5 + aIntensity * 1.5;
+    ctx.globalAlpha = 0.5 + aIntensity * 0.5;
     ctx.setLineDash([8, 6]);
     ctx.beginPath();
     ctx.moveTo(j0x, j0y);
     ctx.lineTo(ax, ay);
     ctx.stroke();
+    if (aIntensity > 0) {
+      ctx.shadowColor = `rgba(136,136,136,${aIntensity * 0.7})`;
+      ctx.shadowBlur = 12 * aIntensity;
+      ctx.stroke();
+    }
     ctx.restore();
 
     // Vertical line: (a,0) → (a,l) showing the "l" distance
     const [bx, by] = toScreen(lengths.a, lengths.l);
+    const lIntensity = (highlightIntensities['l'] && highlightIntensities['l'].current) || 0;
     ctx.save();
-    ctx.strokeStyle = '#888888';
-    ctx.lineWidth = 1.5;
-    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = PIVOT_COLOR;
+    ctx.lineWidth = 1.5 + lIntensity * 1.5;
+    ctx.globalAlpha = 0.5 + lIntensity * 0.5;
     ctx.setLineDash([8, 6]);
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(bx, by);
     ctx.stroke();
+    if (lIntensity > 0) {
+      ctx.shadowColor = `rgba(136,136,136,${lIntensity * 0.7})`;
+      ctx.shadowBlur = 12 * lIntensity;
+      ctx.stroke();
+    }
     ctx.restore();
 
     // Draw crank circle (dashed)

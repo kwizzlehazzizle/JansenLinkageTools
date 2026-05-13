@@ -415,3 +415,31 @@ header .subtitle {
 .control-panel::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
+
+/* ── Flash highlight (one-shot, matches canvas bar crossfade) ── */
+@keyframes flash-highlight {
+  0%   { background: transparent; box-shadow: none; }
+  20%  { background: rgba(243, 156, 18, 0.25); box-shadow: 0 0 16px rgba(243, 156, 18, 0.45); }
+  100% { background: transparent;   box-shadow: none; }
+}
+.flash-highlight {
+  animation: flash-highlight 2.5s ease-out forwards;
+}
+
+@keyframes flash-button {
+  0%   { background: transparent; box-shadow: none; transform: scale(1); }
+  20%  { background: rgba(243, 156, 18, 0.25); box-shadow: 0 0 16px rgba(243, 156, 18, 0.45); transform: scale(1.06); }
+  100% { background: transparent;   box-shadow: none; transform: scale(1); }
+}
+.flash-button {
+  animation: flash-button 2.5s ease-out forwards;
+}
+
+@keyframes flash-value {
+  0%   { color: var(--text-primary); text-shadow: none; }
+  20%  { color: var(--accent-primary); text-shadow: 0 0 10px rgba(243, 156, 18, 0.6); }
+  100% { color: var(--text-primary); text-shadow: none; }
+}
+.flash-value {
+  animation: flash-value 2.5s ease-out forwards;
+}
