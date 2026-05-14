@@ -254,8 +254,8 @@
         }
         anyChanging = true;
       } else if (state.current > state.target && state.reachedFull) {
-        // Fading out over 2.0s (only after reaching full highlight)
-        state.current -= dt / 2.0;
+        // Fading out over 2.5s (only after reaching full highlight)
+        state.current -= dt / 2.5;
         if (state.current <= 0) {
           state.current = 0;
           delete highlightIntensities[barName];
@@ -272,9 +272,9 @@
   function hasActiveHighlights() {
     for (const barName in highlightIntensities) {
       const state = highlightIntensities[barName];
-      if (Math.abs(state.current - state.target) > 0.005) return true;
+      if (Math.abs(state.current - state.target) > 0.001) return true;
       // Also keep animating if fadeOutAfterFull is pending (will trigger once reachedFull)
-      if (state.fadeOutAfterFull && state.current >= 0.005) return true;
+      if (state.fadeOutAfterFull && state.current >= 0.001) return true;
     }
     return false;
   }
@@ -305,9 +305,12 @@
       highlightAnimId = requestAnimationFrame(fadeHighlight);
     } else {
       highlightAnimId = null;
-      highlightAnimId = null;
-      highlightIntensities = {};
-      Renderer.draw(currentJoints, footPath, lengths, currentAngle, showFootPath, false, {});
+      // Clean up fully-faded entries without redrawing — avoids a visible jump
+      for (const barName in highlightIntensities) {
+        if (highlightIntensities[barName].current <= 0.001) {
+          delete highlightIntensities[barName];
+        }
+      }
     }
   }
 
