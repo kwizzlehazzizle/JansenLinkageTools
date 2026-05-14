@@ -53,11 +53,13 @@
 
   // Bar IDs that correspond to drawn bars on the canvas (a and l are pivot distances, not bars)
   const BAR_HIGHLIGHT_IDS = ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm'];
+  // All highlightable IDs including pivot distances
+  const ALL_HIGHLIGHT_IDS = ['a', 'l', ...BAR_HIGHLIGHT_IDS];
 
   // ── Flash helpers (sidebar + button, matches canvas crossfade) ──
   function flashSidebarBars() {
-    // Flash the input-group rows for each bar length
-    BAR_HIGHLIGHT_IDS.forEach(id => {
+    // Flash the input-group rows for each bar length + pivot distances (a, l)
+    ALL_HIGHLIGHT_IDS.forEach(id => {
       const row = inputs[id].closest('.input-group');
       if (row) {
         row.classList.remove('flash-highlight');
@@ -420,8 +422,8 @@
     }
     Renderer.resize();
 
-    // Highlight all bars with auto fade-out
-    BAR_HIGHLIGHT_IDS.forEach(barName => {
+    // Highlight all bars + pivot distances with auto fade-out
+    ALL_HIGHLIGHT_IDS.forEach(barName => {
       if (!highlightIntensities[barName]) {
         highlightIntensities[barName] = { current: 0, target: 0, reachedFull: false, fadeOutAfterFull: false };
       }
@@ -517,8 +519,8 @@
     }
     Renderer.resize();
 
-    // Highlight all bars with auto fade-out (they'll fade in, reach full, then fade out)
-    BAR_HIGHLIGHT_IDS.forEach(barName => {
+    // Highlight all bars + pivot distances with auto fade-out
+    ALL_HIGHLIGHT_IDS.forEach(barName => {
       if (!highlightIntensities[barName]) {
         highlightIntensities[barName] = { current: 0, target: 0, reachedFull: false, fadeOutAfterFull: false };
       }
