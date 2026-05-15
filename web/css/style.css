@@ -208,6 +208,41 @@ header .subtitle {
   line-height: 1.4;
 }
 
+/* ── Score rows ───────────────────────────────────────────── */
+.score-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.score-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.score-value {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.score-value.good {
+  color: var(--accent-secondary);
+}
+
+.score-value.bad {
+  color: var(--accent-danger);
+}
+
+.score-value.orange {
+  color: var(--accent-primary);
+}
+
 /* ── Integer approximation warning ────────────────────────── */
 .integer-warning {
   margin-top: 8px;

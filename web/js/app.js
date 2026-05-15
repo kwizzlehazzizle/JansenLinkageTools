@@ -27,6 +27,7 @@
   let highlightLastTime = null;        // last time we updated highlight intensities
   let currentHoveredBar = null;        // which bar input is currently under the mouse
   let integerScale = 1;                // current integer scale factor for margin compensation
+  let scoreTimer = null;               // debounce timer for score computation
 
   // ── DOM refs ───────────────────────────────────────────────
   const canvas = document.getElementById('linkage-canvas');
@@ -43,6 +44,8 @@
   const inputScale = document.getElementById('input-scale');
   const btnApplyScale = document.getElementById('btn-apply-scale');
   const integerWarning = document.getElementById('integer-warning');
+  const scoreShape = document.getElementById('score-shape');
+  const scoreFlatness = document.getElementById('score-flatness');
 
   // Input elements for each dimension
   const inputIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'];
@@ -84,6 +87,72 @@
     btnEl.addEventListener('animationend', () => btnEl.classList.remove('flash-button'), { once: true });
   }
 
+  // ── Gait quality scoring ────────────────────────────────────
+
+  /**
+   * Schedule a debounced score computation (non-blocking via setTimeout).
+   * @param {boolean} immediate - If true, compute immediately without debounce.
+   */
+  function scheduleScoreComputation(immediate = false) {
+    if (scoreTimer) {
+      clearTimeout(scoreTimer);
+      scoreTimer = null;
+    }
+    if (!immediate) {
+      scoreTimer = setTimeout(computeScores, 150);
+      return;
+    }
+    setTimeout(computeScores, 0);
+  }
+
+  /**
+   * Compute shape and flatness scores and update the UI.
+   * Runs in a setTimeout callback so it doesn't block the current frame.
+   */
+  function computeScores() {
+    scoreTimer = null;
+    const result = Scorer.evaluate(lengths);
+
+    if (!result.converged) {
+      scoreShape.textContent  = 'Error';
+      scoreShape.className    = 'score-value bad';
+      scoreFlatness.textContent = 'Error';
+      scoreFlatness.className   = 'score-value bad';
+      return;
+    }
+
+    const shape  = 100 - result.shapeScore;
+    const flat   = 100 - result.flatnessScore;
+
+    // Format
+    scoreShape.textContent  = formatScore(shape);
+    scoreShape.className    = 'score-value ' + scoreColorClass(shape, 95, 90, 90);
+    scoreFlatness.textContent = formatScore(flat);
+    scoreFlatness.className    = 'score-value ' + scoreColorClass(flat, 90, 85, 85);
+  }
+
+  /**
+   * Format a numeric score for display (100 = perfect).
+   */
+  function formatScore(value) {
+    if (!isFinite(value) || value === Infinity) return '—';
+    if (value <= 0) return '—';
+    return value.toFixed(1) + '%';
+  }
+
+  /**
+   * Return a CSS class based on how good the score is (higher = better).
+   * @param {number} score - percentage (higher is better, 100 = perfect)
+   * @param {number} greenThreshold - score at or above this is green
+   * @param {number} orangeThreshold - score at or above this is orange (below is red)
+   * @param {number} _unused - not used, kept for backwards compat
+   */
+  function scoreColorClass(score, greenThreshold, orangeThreshold, _unused) {
+    if (score >= greenThreshold) return 'good';
+    if (score >= orangeThreshold) return 'orange';
+    return 'bad';
+  }
+
   // ── Initialize ─────────────────────────────────────────────
   function init() {
     // Initialize renderer
@@ -117,6 +186,9 @@
     // Handle resize
     window.addEventListener('resize', onResize);
     onResize();
+
+    // Compute initial scores
+    scheduleScoreComputation(true);
   }
 
   // ── Event listeners ────────────────────────────────────────
@@ -180,6 +252,7 @@
     prevGuess = null;
     footPath = [];
     solveAndRender();
+    scheduleScoreComputation();
   }
 
   // ── Bar highlight on hover ─────────────────────────────────
@@ -445,6 +518,9 @@
     flashSidebarBars();
     flashButton(btnReset);
 
+    // Compute scores for the reset defaults
+    scheduleScoreComputation(true);
+
     // Clear URL params
     window.history.replaceState(null, '', window.location.pathname);
   }
@@ -541,6 +617,9 @@
     // Flash sidebar bars + button
     flashSidebarBars();
     flashButton(btnApplyScale);
+
+    // Compute scores for the integer approximation
+    scheduleScoreComputation(true);
   }
 
   // ── Shareable URL ──────────────────────────────────────────

@@ -278,16 +278,21 @@ const Solver = (() => {
     const frames = [];
     const footPath = [];
     let prevGuess = null;
+    let allConverged = true;
 
     for (let i = 0; i < numFrames; i++) {
-      const angle = (i / numFrames) * 720;
+      const angle = (i / numFrames) * 360;
       const result = solveLinkage(angle, lengths, prevGuess);
       frames.push(result);
       footPath.push(result.joints[7]); // J7 is the foot
-      prevGuess = result.joints.slice(3).flat();
+      if (result.converged) {
+        prevGuess = result.joints.slice(3).flat();
+      } else {
+        allConverged = false;
+      }
     }
 
-    return { frames, footPath };
+    return { frames, footPath, allConverged };
   }
 
   return { solveLinkage, solveAllFrames };
