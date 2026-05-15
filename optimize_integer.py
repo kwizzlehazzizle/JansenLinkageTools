@@ -551,6 +551,11 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     eval_count = 0
     prune_count = 0
     nan_count = 0
+    converge_count = 0
+    best_shape = float('inf')
+    best_flat = float('inf')
+    within_5pct_shape = 0
+    within_5pct_flat = 0
     t_start = time.time()
     last_report = 0
 
@@ -596,6 +601,10 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
                 perturb[b] = -1
             continue
 
+        # Track convergence (all frames converged)
+        if result[1]:
+            converge_count += 1
+
         # Quick score
         score = compare_paths_simple(ref_sample, foot)
         perturb_tuple = tuple(perturb)
@@ -607,8 +616,21 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
         elif neg_score > heap[0][0]:
             heapq.heapreplace(heap, (neg_score, idx, perturb_tuple))
 
+        # Track within 5% of best shape
+        if score < best_shape:
+            best_shape = score
+        if score <= best_shape * 1.05:
+            within_5pct_shape += 1
+
         # Maintain flatness heap (always on)
         flatness = compute_flatness(foot)
+
+        # Track within 5% of best flatness
+        if flatness < best_flat:
+            best_flat = flatness
+        if flatness <= best_flat * 1.05:
+            within_5pct_flat += 1
+
         neg_flatness = -flatness
         if len(flat_heap) < heap_size:
             heapq.heappush(flat_heap, (neg_flatness, idx, perturb_tuple))
@@ -695,7 +717,7 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     full_results_by_flat = sorted(full_results, key=lambda x: x[5])  # sort by flatness
     top_flat_results = full_results_by_flat[:top_n]
 
-    return top_n_results, full_results, baseline_score, ref_path_full[0], base_int_f, top_flat_results
+    return top_n_results, full_results, baseline_score, ref_path_full[0], base_int_f, top_flat_results, converge_count, eval_count, within_5pct_shape, within_5pct_flat
 
 
 # ── Reporting ────────────────────────────────────────────────
@@ -724,7 +746,7 @@ def format_perturbation(perturb, base_int):
     return ", ".join(parts)
 
 
-def print_results(results, base_int, top_n=3, flat_results=None):
+def print_results(results, base_int, top_n=3, flat_results=None, converge_count=0, eval_count=0, within_5pct_shape=0, within_5pct_flat=0):
     """Print ranked results by shape-match and flatness."""
     print("\n" + "=" * 80)
     print(f"  {_GREEN}TOP RESULTS — Best Shape Match (Lower score is better){_RESET}")
@@ -776,7 +798,22 @@ def print_results(results, base_int, top_n=3, flat_results=None):
               f"- "
               f"Ground contact: ~{ground_pct:.0f}%")
 
+    # Convergence summary
+    non_converging = eval_count - converge_count
+    conv_pct = converge_count / eval_count * 100 if eval_count > 0 else 0
+    non_conv_pct = non_converging / eval_count * 100 if eval_count > 0 else 0
+
     print("\n" + "=" * 80)
+    print(f"  CONVERGENCE SUMMARY")
+    print("=" * 80)
+    print(f"  {_GREEN}Converging:     {converge_count:>7,}  ({conv_pct:5.1f}%){_RESET}")
+    shape_pct = within_5pct_shape / eval_count * 100 if eval_count > 0 else 0
+    flat_pct = within_5pct_flat / eval_count * 100 if eval_count > 0 else 0
+    print(f"\t  Within 5% of best shape:     {within_5pct_shape:>7,}  ({shape_pct:5.1f}%)")
+    print(f"\t  Within 5% of best flatness:  {within_5pct_flat:>7,}  ({flat_pct:5.1f}%)")
+    print(f"  {_RED}Non-converging: {non_converging:>7,}  ({non_conv_pct:5.1f}%){_RESET}")
+    print(f"  Total evaluated:  {eval_count:>7,}{_RESET}")
+    print("=" * 80)
 
 
 # ── Export ───────────────────────────────────────────────────
@@ -852,23 +889,26 @@ def main():
         args.angles = 180
 
     print("=" * 50)
-    print("  Jansen Linkage Integer Optimization")
+    print(f"  {_GREEN}{_BOLD}Jansen Linkage Integer Optimization{_RESET}")
     print("=" * 50)
-    print(f"  Scale factor: {args.scale}")
-    print(f"  Original: {ORIGINAL}")
-    print(f"  Combinations: {3**NUM_BARS:,} (3^{NUM_BARS})")
-    print(f"  Evaluation: {args.sample}-angle quick → {args.angles}-angle full")
-    print(f"  Numba JIT: {'enabled' if HAS_NUMBA else 'disabled — pip install numba'}")
+    print(f"  {_YELLOW}Scale factor:{_RESET} {args.scale}")
+    print(f"  {_YELLOW}Original:{_RESET} {ORIGINAL}")
+    print(f"  {_YELLOW}Combinations:{_RESET} {3**NUM_BARS:,} (3^{NUM_BARS})")
+    print(f"  {_YELLOW}Evaluation:{_RESET} {args.sample}-angle quick → {args.angles}-angle full")
+    numba_status = f"{_GREEN}enabled{_RESET}" if HAS_NUMBA else f"{_RED}disabled — pip install numba{_RESET}"
+    print(f"  {_YELLOW}Numba JIT:{_RESET} {numba_status}")
     print("=" * 50)
     print()
 
-    top_results, all_results, baseline_score, ref_path, base_int, top_flat = \
+    top_results, all_results, baseline_score, ref_path, base_int, top_flat, converge_count, eval_count, within_5pct_shape, within_5pct_flat = \
         enumerate_combinations(ORIGINAL, args.scale,
                                top_n=args.top,
                                full_angles=args.angles,
                                sample_angles=args.sample)
 
-    print_results(top_results, base_int, args.top, flat_results=top_flat)
+    print_results(top_results, base_int, args.top, flat_results=top_flat,
+                  converge_count=converge_count, eval_count=eval_count,
+                  within_5pct_shape=within_5pct_shape, within_5pct_flat=within_5pct_flat)
     if args.export is not None:
         export_config(top_results, base_int, args.export, flat_results=top_flat)
 
