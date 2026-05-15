@@ -126,9 +126,9 @@
 
     // Format
     scoreShape.textContent  = formatScore(shape);
-    scoreShape.className    = 'score-value ' + scoreColorClass(shape, 95, 90, 90);
+    scoreShape.className    = 'score-value ' + scoreColorClass(shape, 95, 93, 90, 'reddish-orange');
     scoreFlatness.textContent = formatScore(flat);
-    scoreFlatness.className    = 'score-value ' + scoreColorClass(flat, 90, 85, 85);
+    scoreFlatness.className    = 'score-value ' + scoreColorClass(flat, 93, 90, 87, 'dark-orange');
   }
 
   /**
@@ -142,14 +142,16 @@
 
   /**
    * Return a CSS class based on how good the score is (higher = better).
-   * @param {number} score - percentage (higher is better, 100 = perfect)
-   * @param {number} greenThreshold - score at or above this is green
-   * @param {number} orangeThreshold - score at or above this is orange (below is red)
-   * @param {number} _unused - not used, kept for backwards compat
+   * @param {number} score
+   * @param {number} green - score at or above this is green
+   * @param {number} orange - score at or above this is orange
+   * @param {number} tertiary - score at or above this uses tertiaryColor
+   * @param {string} tertiaryColor - CSS class for the tertiary tier
    */
-  function scoreColorClass(score, greenThreshold, orangeThreshold, _unused) {
-    if (score >= greenThreshold) return 'good';
-    if (score >= orangeThreshold) return 'orange';
+  function scoreColorClass(score, green, orange, tertiary, tertiaryColor) {
+    if (score >= green) return 'good';
+    if (score >= orange) return 'orange';
+    if (score >= tertiary) return tertiaryColor;
     return 'bad';
   }
 

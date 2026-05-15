@@ -243,6 +243,14 @@ header .subtitle {
   color: var(--accent-primary);
 }
 
+.score-value.reddish-orange {
+  color: #e67e22;
+}
+
+.score-value.dark-orange {
+  color: #d35400;
+}
+
 /* ── Integer approximation warning ────────────────────────── */
 .integer-warning {
   margin-top: 8px;
