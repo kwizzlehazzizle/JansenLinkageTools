@@ -179,6 +179,9 @@
     // Populate inputs from current lengths
     updateInputsFromLengths();
 
+    // Clear solver warning so it can be re-triggered
+    solverWarning.style.display = 'none';
+
     // Solve initial frame
     solveAndRender();
 
@@ -253,6 +256,8 @@
     // Reset continuation state on dimension change
     prevGuess = null;
     footPath = [];
+    // Clear solver warning so it can be re-triggered
+    solverWarning.style.display = 'none';
     solveAndRender();
     scheduleScoreComputation();
   }
@@ -397,7 +402,6 @@
     currentJoints = result.joints;
 
     if (result.converged) {
-      solverWarning.style.display = 'none';
       // Update continuation state
       prevGuess = result.joints.slice(3).flat();
       // Accumulate foot path
@@ -485,6 +489,9 @@
     sliderAngle.value = 0;
     angleDisplay.textContent = '0.0°';
 
+    // Clear solver warning so it can be re-triggered
+    solverWarning.style.display = 'none';
+
     // Recompute view bounds for the reset lengths
     const tempResult = Solver.solveLinkage(0, lengths, null);
     if (tempResult.converged) {
@@ -561,6 +568,9 @@
     footPath = [];
     sliderAngle.value = 0;
     angleDisplay.textContent = '0.0°';
+
+    // Clear solver warning so it can be re-triggered
+    solverWarning.style.display = 'none';
 
     // Track the integer scale factor for margin compensation
     integerScale = scale;
