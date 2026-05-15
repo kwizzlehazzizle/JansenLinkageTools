@@ -1,1 +1,15 @@
 optimized_configs.json
+__pycache__/optimize_integer.check_geometry_fast-284.py314.1.nbc
+__pycache__/optimize_integer.check_geometry_fast-284.py314.nbi
+__pycache__/optimize_integer.compare_paths_simple-428.py314.1.nbc
+__pycache__/optimize_integer.compare_paths_simple-428.py314.nbi
+__pycache__/optimize_integer.compute_flatness-315.py314.1.nbc
+__pycache__/optimize_integer.compute_flatness-315.py314.nbi
+__pycache__/optimize_integer.compute_foot_path_jit-259.py314.1.nbc
+__pycache__/optimize_integer.compute_foot_path_jit-259.py314.nbi
+__pycache__/optimize_integer.compute_residuals-84.py314.1.nbc
+__pycache__/optimize_integer.compute_residuals-84.py314.nbi
+__pycache__/optimize_integer.make_default_guess-242.py314.1.nbc
+__pycache__/optimize_integer.make_default_guess-242.py314.nbi
+__pycache__/optimize_integer.solve_single_angle-131.py314.1.nbc
+__pycache__/optimize_integer.solve_single_angle-131.py314.nbi
