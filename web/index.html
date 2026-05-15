@@ -85,19 +85,6 @@
           </div>
         </section>
 
-        <!-- Gait Quality -->
-        <section class="panel-section">
-          <h2>Gait Quality</h2>
-          <div class="score-row">
-            <span class="score-label">Shape Match</span>
-            <span id="score-shape" class="score-value">—</span>
-          </div>
-          <div class="score-row">
-            <span class="score-label">Flatness</span>
-            <span id="score-flatness" class="score-value">—</span>
-          </div>
-        </section>
-
         <!-- Integer Approximation -->
         <section class="panel-section">
           <h2>Integer Approximation</h2>
@@ -134,6 +121,18 @@
           ⚠ Solver did not converge — dimensions may be invalid
         </div>
       </main>
+    </div>
+
+    <!-- Gait Quality overlay (right of animation panel) -->
+    <div id="gait-quality-overlay" class="gait-overlay">
+      <div class="score-row">
+        <span class="score-label">Shape Match</span>
+        <span id="score-shape" class="score-value">—</span>
+      </div>
+      <div class="score-row">
+        <span class="score-label">Flatness</span>
+        <span id="score-flatness" class="score-value">—</span>
+      </div>
     </div>
 
     <!-- Animation controls (fixed, lower-left) -->
