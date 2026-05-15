@@ -32,13 +32,18 @@ Usage Examples:
     # Full resolution at larger scale
     python optimize_integer.py --scale 1.0 --angles 360
 
+    # Show ASCII art of the Jansen linkage alongside progress output (colored teal)
+    python optimize_integer.py --scale 0.2 --asciiart
+
 Arguments:
-    --scale   Scale factor (default: 0.2, use 1.0 for 1:1, 10 for 10x)
-    --angles  Full evaluation angles (default: 360)
-    --top     Number of best combos to report (default: 3)
-    --sample  Cheap-pass sample angles (default: 12)
-    --quick   Quick mode: 6 sample angles, 180 full angles
-    --export  Directory to export JSON config (default: .)
+    --scale    Scale factor (default: 0.2, use 1.0 for 1:1, 10 for 10x)
+    --angles   Full evaluation angles (default: 360)
+    --top      Number of best combos to report (default: 3)
+    --sample   Cheap-pass sample angles (default: 12)
+    --quick    Quick mode: 6 sample angles, 180 full angles
+    --export   Directory to export JSON config (default: .)
+    --asciiart Show ASCII art of the Jansen linkage alongside progress output (teal).
+               Art lines are vertically centered across progress updates. Disabled by default.
 """
 
 import argparse
@@ -496,7 +501,7 @@ def array_to_dict(L):
 
 
 def enumerate_combinations(base_lengths_dict, scale, top_n=3,
-                           full_angles=360, sample_angles=12):
+                           full_angles=360, sample_angles=12, show_asciiart=False):
     """
     Main enumeration: search all 3^13 perturbations.
     """
@@ -558,6 +563,13 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
     within_5pct_flat = 0
     t_start = time.time()
     last_report = 0
+
+    # ASCII art progress: center art lines vertically across progress outputs
+    art_len = len(LINKAGE_ART)
+    estimated_progress_lines = (total // 25_000) + 1
+    art_offset = max(0, (estimated_progress_lines - art_len) // 2)
+    progress_line = 0  # increments each time we print progress
+     # show_asciiart is passed as a parameter from main()
 
     # Precompute base_int_L as float for solver
     base_int_f = base_int_L.astype(np.float64)
@@ -652,8 +664,18 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
                   f"ETA {eta/60:.1f}m | "
                   f"Best Shape: {best_score:.4f} | Best Flatness: {best_flat:.4f}")
             line += f" | Pruned: {prune_count:,} | NaN: {nan_count:,}"
-            print(line)
+
+            # Combine with ASCII art line on the same line (art on the right, fixed column, colored teal)
+            progress_width = 108  # width of the progress text before the art starts
+            art_idx = progress_line - art_offset
+            if show_asciiart and 0 <= art_idx < art_len:
+                art_line = _CYAN + LINKAGE_ART[art_idx] + _RESET
+                padded = line.ljust(progress_width)
+                print(f"  {padded}  {art_line}")
+            else:
+                print(f"  {line}")
             last_report = eval_count
+            progress_line += 1
 
         # Advance odometer for next iteration
         for b in range(NUM_BARS - 1, -1, -1):
@@ -712,12 +734,15 @@ def enumerate_combinations(base_lengths_dict, scale, top_n=3,
 
     print(f"Pass 2 complete in {elapsed_pass2:.1f}s")
 
-    top_n_results = full_results[:top_n]
-    # Find top-N by flatness (always computed)
-    full_results_by_flat = sorted(full_results, key=lambda x: x[5])  # sort by flatness
+    # Filter to only converged combinations (both shape and flatness must converge)
+    full_results_converged = [r for r in full_results if r[4]]
+
+    top_n_results = full_results_converged[:top_n]
+    # Find top-N by flatness (always computed, converged only)
+    full_results_by_flat = sorted(full_results_converged, key=lambda x: x[5])  # sort by flatness
     top_flat_results = full_results_by_flat[:top_n]
 
-    return top_n_results, full_results, baseline_score, ref_path_full[0], base_int_f, top_flat_results, converge_count, eval_count, within_5pct_shape, within_5pct_flat
+    return top_n_results, full_results, baseline_score, ref_path_full[0], base_int_f, top_flat_results, converge_count, eval_count, within_5pct_shape, within_5pct_flat, estimated_progress_lines
 
 
 # ── Reporting ────────────────────────────────────────────────
@@ -729,6 +754,57 @@ _CYAN = "\033[36m"
 _YELLOW = "\033[33m"
 _RED = "\033[31m"
 _RESET = "\033[0m"
+
+# ASCII art of the Jansen linkage (51 lines, printed alongside progress output)
+LINKAGE_ART = [
+    "                                     .",
+    "                               .-+++  -..",
+    "                           .-+++  .   ..-..",
+    "                       .-+++     ##  +-...--.",
+    "                   .-+++     -++--  -...-...--..",
+    "               .-++- .   +++-.. .. -.   ..-... -..",
+    "           .-++- .   ++-..     .-  -.     ..-....--.....",
+    "       .-+++ ..  ++-..         -. -.        ..--.. .    ....",
+    "  ..-##- ..  ++-...           -+ +.        ..   .-...--.   ..",
+    "  .  ..  ++-..               .- .-        ..  .....--.. --.  ..",
+    "  .   . -++-..              .-  -.        .  .     ..--...--. .",
+    "  .-. #-  . .+++..          --  ..       .. .     .---.--...-.-.",
+    "   .-  --++-- .  +++-.     .-  -.        . ..     .   .   .-.  .",
+    "    ..  ..  .+++. .  +++-..-  -.         .  .     .- -.....-  -.",
+    "    ..   ..     .-++- .. .++  ...................... . ...  ...",
+    "     ..  ...        .-++-    ..   .                  ...   -...",
+    "      .-  -.            .-+  +.........................  -. ..",
+    "       .-  -.             .-  -.            ..     ..  ... ..",
+    "        ..  -.             -  ..             ......   .....",
+    "        ...  ..            .-  -.              ...  -..",
+    "         ..  ..             -- ..            ...  ...",
+    "          .-  +-.           .-  -.         ...   ...",
+    "           .- .---..         .+ ..        ..   -..",
+    "            .+ .   +--.       -  -      ..-  ...",
+    "             -  ++    -+-..   .+ +.   ...  ...",
+    "             .. -..--.   .---. -. +....   ...",
+    "             .-  .  ..-+-    ---+ --..  ...",
+    "              .  -.    ..--+    ++ #.  ...",
+    "              ..  .        ..--- .  ....",
+    "              ..  -.          ..-# --.",
+    "               ..  .            -  -.",
+    "               ..  -.          .- -.",
+    "                ..  .         .- -.",
+    "                ..  -.       .-  -",
+    "                 ..  .       .. ..",
+    "                 .-  -.     .-  .",
+    "                  ..  .    ..  -.",
+    "                  .-  ..   .  ..",
+    "                   .. ..  .-  ..",
+    "                   .- .. .-  -.",
+    "                    .. -..  ..",
+    "                    .- --.  ..",
+    "                     .. +  -.",
+    "                     .- - -.",
+    "                      .- ..",
+    "                      .-.-.",
+    "                       ....",
+]
 
 def format_perturbation(perturb, base_int):
     """Format perturbation tuple as readable colored string."""
@@ -882,59 +958,14 @@ def main():
                         help="Export JSON config (use with directory path, or no arg for current dir)")
     parser.add_argument("--quick", action="store_true",
                         help="Quick mode: only 6 sample angles, smaller heap")
+    parser.add_argument("--asciiart", action="store_true",
+                        help="Show ASCII art of the Jansen linkage alongside progress output")
     args = parser.parse_args()
 
     if args.quick:
         args.sample = 6
         args.angles = 180
 
-    print("""                                                    .
-                                              .-+++  -..
-                                          .-+++  .   ..-..
-                                      .-+++     ##  +-...--.
-                                  .-+++     -++--  -...-...--..
-                              .-++- .   +++-.. .. -.   ..-... -..
-                          .-++- .   ++-..     .-  -.     ..-....--.....
-                      .-+++ ..  ++-..         -. -.        ..--.. .    ....
-                 ..-##- ..  ++-...           -+ +.        ..   .-...--.   ..
-                 .  ..  ++-..               .- .-        ..  .....--.. --.  ..
-                 .   . -++-..              .-  -.        .  .     ..--...--. .
-                 .-. #-  . .+++..          --  ..       .. .     .---.--...-.-.
-                  .-  --++-- .  +++-.     .-  -.        . ..     .   .   .-.  .
-                   ..  ..  .+++. .  +++-..-  -.         .  .     .- -.....-  -.
-                   ..   ..     .-++- .. .++  ...................... . ...  ...
-                    ..  ...        .-++-    ..   .                  ...   -...
-                     .-  -.            .-+  +.........................  -. ..
-                      .-  -.             .-  -.            ..     ..  ... ..
-                       ..  -.             -  ..             ......   .....
-                       ...  ..            .-  -.              ...  -..
-                        ..  ..             -- ..            ...  ...
-                         .-  +-.           .-  -.         ...   ...
-                          .- .---..         .+ ..        ..   -..
-                           .+ .   +--.       -  -      ..-  ...
-                            -  ++    -+-..   .+ +.   ...  ...
-                            .. -..--.   .---. -. +....   ...
-                            .-  .  ..-+-    ---+ --..  ...
-                             .  -.    ..--+    ++ #.  ...
-                             ..  .        ..--- .  ....
-                             ..  -.          ..-# --.
-                              ..  .            -  -.
-                              ..  -.          .- -.
-                               ..  .         .- -.
-                               ..  -.       .-  -
-                                ..  .       .. ..
-                                .-  -.     .-  .
-                                 ..  .    ..  -.
-                                 .-  ..   .  ..
-                                  .. ..  .-  ..
-                                  .- .. .-  -.
-                                   .. -..  ..
-                                   .- --.  ..
-                                    .. +  -.
-                                    .- - -.
-                                     .- ..
-                                     .-.-.
-                                      .... """)
     print("=" * 50)
     print(f"  {_GREEN}{_BOLD}Jansen Linkage Integer Optimization{_RESET}")
     print("=" * 50)
@@ -947,11 +978,12 @@ def main():
     print("=" * 50)
     print()
 
-    top_results, all_results, baseline_score, ref_path, base_int, top_flat, converge_count, eval_count, within_5pct_shape, within_5pct_flat = \
+    top_results, all_results, baseline_score, ref_path, base_int, top_flat, converge_count, eval_count, within_5pct_shape, within_5pct_flat, est_lines = \
         enumerate_combinations(ORIGINAL, args.scale,
                                top_n=args.top,
                                full_angles=args.angles,
-                               sample_angles=args.sample)
+                               sample_angles=args.sample,
+                               show_asciiart=args.asciiart)
 
     print_results(top_results, base_int, args.top, flat_results=top_flat,
                   converge_count=converge_count, eval_count=eval_count,
@@ -959,15 +991,16 @@ def main():
     if args.export is not None:
         export_config(top_results, base_int, args.export, flat_results=top_flat)
 
-    # Baseline ranking
+    # Baseline ranking (among converged results only)
     baseline_rank = None
-    for i, (score, perturb, L, fp, conv, flt) in enumerate(all_results):
+    all_converged = [r for r in all_results if r[4]]
+    for i, (score, perturb, L, fp, conv, flt) in enumerate(all_converged):
         if all(p == 0 for p in perturb):
             baseline_rank = i + 1
             break
     if baseline_rank:
         print(f"\n  Baseline integer rounding ranked #{baseline_rank} "
-              f"out of {len(all_results)} evaluated.")
+              f"out of {len(all_converged)} converged combinations.")
 
 
 if __name__ == "__main__":
