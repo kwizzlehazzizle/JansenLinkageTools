@@ -943,6 +943,40 @@ def export_config(results, base_int, output_dir=".", flat_results=None):
 
 # ── Main ─────────────────────────────────────────────────────
 
+def launch_web(top_shape, top_flat, top_n=3):
+    """Open the web simulator with the top shape + top flatness configurations."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    index_path = os.path.join(script_dir, 'web', 'index.html')
+    if not os.path.exists(index_path):
+        print(f"\n  Warning: web/index.html not found at {index_path}")
+        return
+
+    # Merge top shape and top flatness, deduplicate by perturbation tuple
+    seen = set()
+    merged = []
+    for label, source in [('Shape', top_shape[:top_n]), ('Flatness', top_flat[:top_n])]:
+        for item in source:
+            score, perturb, L, foot, converged, flatness = item
+            if perturb not in seen:
+                seen.add(perturb)
+                merged.append((label, item))
+
+    # Build file:// URL for Windows: file:///C:/path with forward slashes
+    abs_path = os.path.abspath(index_path)
+    drive, tail = os.path.splitdrive(abs_path)
+    url_base = f'file:///{drive}{tail.replace("\\", "/")}'
+
+    print(f"\n  Top configurations ({len(merged)}):\n")
+
+    for rank, (label, (score, perturb, L, foot, converged, flatness)) in enumerate(merged):
+        params = {k: str(int(round(L[i]))) for i, k in enumerate(BAR_KEYS)}
+        url_params = '&'.join(f'{k}={v}' for k, v in params.items())
+        url = f'{url_base}?{url_params}'
+        print(f"  #{rank + 1} ({label}):")
+        print(f"    {url}")
+        print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Optimize integer bar lengths for Jansen linkage")
@@ -960,6 +994,8 @@ def main():
                         help="Quick mode: only 6 sample angles, smaller heap")
     parser.add_argument("--asciiart", action="store_true",
                         help="Show ASCII art of the Jansen linkage alongside progress output")
+    parser.add_argument("--launchweb", action="store_true",
+                        help="Open the web simulator with the top configurations as URL parameters")
     args = parser.parse_args()
 
     if args.quick:
@@ -990,6 +1026,9 @@ def main():
                   within_5pct_shape=within_5pct_shape, within_5pct_flat=within_5pct_flat)
     if args.export is not None:
         export_config(top_results, base_int, args.export, flat_results=top_flat)
+
+    if args.launchweb:
+        launch_web(top_results, top_flat, args.top)
 
     # Baseline ranking (among converged results only)
     baseline_rank = None

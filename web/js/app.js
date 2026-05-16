@@ -160,17 +160,21 @@
     // Initialize renderer
     Renderer.init(canvas);
 
-    // Parse URL params for shared configs
-    const params = new URLSearchParams(window.location.search);
+    // Parse URL params for shared configs (search or hash — hash works with file:// URLs)
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = window.location.hash.startsWith('?')
+      ? new URLSearchParams(window.location.hash.slice(1))
+      : new URLSearchParams();
+    const urlParams = searchParams.size ? searchParams : hashParams;
     let hasParams = false;
     inputIds.forEach(id => {
-      const val = params.get(id);
+      const val = urlParams.get(id);
       if (val !== null) {
         lengths[id] = parseFloat(val);
         hasParams = true;
       }
     });
-    const angleParam = params.get('angle');
+    const angleParam = urlParams.get('angle');
     if (angleParam !== null) {
       currentAngle = parseFloat(angleParam);
       hasParams = true;
