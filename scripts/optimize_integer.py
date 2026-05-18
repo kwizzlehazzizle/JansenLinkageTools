@@ -962,7 +962,7 @@ def launch_web(top_shape, top_flat, top_n=3):
                 seen.add(perturb)
                 merged.append((label, item))
 
-    # Build file:// URL for Windows: file:///C:/path with forward slashes
+    # Build file:// URL — use hash params (#?a=3&b=4) since query params don't work with file://
     abs_path = os.path.abspath(index_path)
     drive, tail = os.path.splitdrive(abs_path)
     url_base = f'file:///{drive}{tail.replace("\\", "/")}'
@@ -972,7 +972,7 @@ def launch_web(top_shape, top_flat, top_n=3):
     for rank, (label, (score, perturb, L, foot, converged, flatness)) in enumerate(merged):
         params = {k: str(int(round(L[i]))) for i, k in enumerate(BAR_KEYS)}
         url_params = '&'.join(f'{k}={v}' for k, v in params.items())
-        url = f'{url_base}?{url_params}'
+        url = f'{url_base}#?{url_params}'
         print(f"  #{rank + 1} ({label}):")
         print(f"    {url}")
         print()
@@ -995,8 +995,8 @@ def main():
                         help="Quick mode: only 6 sample angles, smaller heap")
     parser.add_argument("--asciiart", action="store_true",
                         help="Show ASCII art of the Jansen linkage alongside progress output")
-    parser.add_argument("--launchweb", action="store_true",
-                        help="Open the web simulator with the top configurations as URL parameters")
+    parser.add_argument("--no-showweb", action="store_true",
+                        help="Don't display web simulator URLs for the top configurations")
     args = parser.parse_args()
 
     if args.quick:
@@ -1028,7 +1028,7 @@ def main():
     if args.export is not None:
         export_config(top_results, base_int, args.export, flat_results=top_flat)
 
-    if args.launchweb:
+    if not args.no_showweb:
         launch_web(top_results, top_flat, args.top)
 
     # Baseline ranking (among converged results only)
