@@ -4,11 +4,11 @@ the right measurements for their builds
 
 This project contains the following tools:
   Webapp (index.html)- Visualise the path of the linkage and dynamically modify the lengths. Has built in integer scaling.
-  optimize_integer.py - Enter the scale, ex: --scale 0.2 to get top X (--top 3) configurations for best performing integer measurements.
+  scripts/optimize_integer.py - Enter the scale, ex: --scale 0.2 to get top X (--top 3) configurations for best performing integer measurements.
                            After the script runs it will generate local urls that you can paste in your browser to see the optimal measurement
                            linkages in the web app
-                           
-  Gif - Makes a gif of the linkage over 720 degrees. Takes a long time. Values are hard coded. Go into the sctipt and change them and then run the script.
+
+  scripts/jansen_linkage.py - Makes a gif of the linkage over 720 degrees. Takes a long time. Values are hard coded. Go into the script and change them and then run the script.
 
 Usage:
   *  Just copy everything on your computer and maintain the folder structure.

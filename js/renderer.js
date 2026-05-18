@@ -274,13 +274,14 @@ const Renderer = (() => {
     const tableY = 50;
     const tableW = 140;
     const rowH = 22;
+    const PIVOT_COLOR = '#888888';
 
-    // Background panel
+    // Background panel (taller to fit pivot lengths a and l)
     ctx.save();
     ctx.fillStyle = PANEL_COLOR;
     ctx.strokeStyle = BORDER_COLOR;
     ctx.lineWidth = 1;
-    roundRect(ctx, tableX, tableY, tableW, 280, 8);
+    roundRect(ctx, tableX, tableY, tableW, 380, 8);
     ctx.fill();
     ctx.stroke();
 
@@ -298,7 +299,36 @@ const Renderer = (() => {
     ctx.lineTo(tableX + tableW - 10, tableY + 32);
     ctx.stroke();
 
-    // Rows
+    // Pivot section header
+    ctx.fillStyle = PIVOT_COLOR;
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Fixed pivots', tableX + 15, tableY + 44);
+
+    // Pivot rows: a (horizontal) and l (vertical) — gray to match pivot lines
+    ctx.font = 'bold 13px "Consolas", "Courier New", monospace';
+    const pivotNames = ['a', 'l'];
+    for (let i = 0; i < pivotNames.length; i++) {
+      const name = pivotNames[i];
+      const y = tableY + 60 + i * rowH;
+
+      ctx.fillStyle = PIVOT_COLOR;
+      ctx.textAlign = 'left';
+      ctx.fillText(name, tableX + 15, y);
+      ctx.textAlign = 'right';
+      ctx.fillText(lengths[name].toFixed(1), tableX + tableW - 15, y);
+      ctx.textAlign = 'left';
+    }
+
+    // Separator between pivots and bars
+    ctx.strokeStyle = BORDER_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(tableX + 10, tableY + 110);
+    ctx.lineTo(tableX + tableW - 10, tableY + 110);
+    ctx.stroke();
+
+    // Bar rows
     const barNames = ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm'];
     ctx.font = 'bold 13px "Consolas", "Courier New", monospace';
     ctx.textAlign = 'left';
@@ -306,7 +336,7 @@ const Renderer = (() => {
 
     for (let i = 0; i < barNames.length; i++) {
       const name = barNames[i];
-      const y = tableY + 44 + i * rowH;
+      const y = tableY + 122 + i * rowH;
       const color = BAR_COLORS[name];
 
       // Bar name (left)
