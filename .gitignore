@@ -1,2 +1,5 @@
 optimized_configs.json
 __pycache__/
+scripts/decompress_nbt.py
+scripts/aerojansenquadoptflat - Copy.nbt
+scripts/aerojansenquadoptflat - Copy.json
