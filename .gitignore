@@ -3,3 +3,7 @@ __pycache__/
 scripts/decompress_nbt.py
 scripts/aerojansenquadoptflat - Copy.nbt
 scripts/aerojansenquadoptflat - Copy.json
+scripts/jansen_schematic_0_0.json
+scripts/jansen_schematic_45.json
+scripts/jansen_schematic_90.json
+scripts/jansellinkageonly.json
