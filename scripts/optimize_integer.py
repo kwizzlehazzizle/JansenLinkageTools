@@ -946,7 +946,8 @@ def export_config(results, base_int, output_dir=".", flat_results=None):
 def launch_web(top_shape, top_flat, top_n=3):
     """Open the web simulator with the top shape + top flatness configurations."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    index_path = os.path.join(script_dir, 'index.html')
+    project_root = os.path.dirname(script_dir)
+    index_path = os.path.join(project_root, 'index.html')
     if not os.path.exists(index_path):
         print(f"\n  Warning: index.html not found at {index_path}")
         return
