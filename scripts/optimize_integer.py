@@ -962,19 +962,15 @@ def launch_web(top_shape, top_flat, top_n=3):
                 seen.add(perturb)
                 merged.append((label, item))
 
-    # Build file:// URL — use hash params (#?a=3&b=4) since query params don't work with file://
-    abs_path = os.path.abspath(index_path)
-    drive, tail = os.path.splitdrive(abs_path)
-    url_base = f'file:///{drive}{tail.replace("\\", "/")}'
-
+    # Build JansenGif command with quoted --Lengths (works on Windows cmd)
     print(f"\n  Top configurations ({len(merged)}):\n")
 
     for rank, (label, (score, perturb, L, foot, converged, flatness)) in enumerate(merged):
         params = {k: str(int(round(L[i]))) for i, k in enumerate(BAR_KEYS)}
-        url_params = '&'.join(f'{k}={v}' for k, v in params.items())
-        url = f'{url_base}#?{url_params}'
+        lengths_str = '&'.join(f'{k}={v}' for k, v in params.items())
+        gif_cmd = f'python scripts/JansenGif.py --Lengths "{lengths_str}"'
         print(f"  #{rank + 1} ({label}):")
-        print(f"    {url}")
+        print(f"    {gif_cmd}")
         print()
 
 

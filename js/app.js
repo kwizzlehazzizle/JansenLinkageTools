@@ -168,14 +168,17 @@
     const urlParams = searchParams.size ? searchParams : hashParams;
     let hasParams = false;
     inputIds.forEach(id => {
-      const val = urlParams.get(id);
+      let val = urlParams.get(id);
       if (val !== null) {
+        // Strip surrounding quotes (from pasted CLI --Lengths value)
+        val = val.replace(/^["']|["']$/g, '');
         lengths[id] = parseFloat(val);
         hasParams = true;
       }
     });
-    const angleParam = urlParams.get('angle');
+    let angleParam = urlParams.get('angle');
     if (angleParam !== null) {
+      angleParam = angleParam.replace(/^["']|["']$/g, '');
       currentAngle = parseFloat(angleParam);
       hasParams = true;
     }
@@ -644,16 +647,16 @@
     inputIds.forEach(id => {
       params.set(id, lengths[id].toFixed(1));
     });
-    params.set('angle', currentAngle.toFixed(1));
 
-    const url = window.location.origin + window.location.pathname + '?' + params.toString();
+    const query = params.toString();
+    const text = `file://${window.location.host}${window.location.pathname}?"${query}&angle=${currentAngle.toFixed(1)}"`;
 
-    navigator.clipboard.writeText(url).then(() => {
-      exportStatus.textContent = '✅ Link copied to clipboard!';
+    navigator.clipboard.writeText(text).then(() => {
+      exportStatus.textContent = '✅ Copied!';
       setTimeout(() => { exportStatus.textContent = ''; }, 3000);
     }).catch(() => {
       // Fallback
-      prompt('Copy this URL:', url);
+      prompt('Copy this:', text);
     });
   }
 

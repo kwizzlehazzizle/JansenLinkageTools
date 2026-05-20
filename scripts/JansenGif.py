@@ -33,7 +33,10 @@ Topology (from diagram):
         k: J1↔J6,  m: J1↔J2 (crank)
 """
 
+import argparse
 import io
+import os
+import urllib.parse
 import numpy as np
 from scipy.optimize import least_squares
 import matplotlib
@@ -43,13 +46,36 @@ from matplotlib.patches import Circle
 from PIL import Image
 import imageio.v3 as imageio
 
-# ── Bar lengths ──────────────────────────────────────────────
-LENGTHS = {
+# ── Parse arguments ──────────────────────────────────────────
+DEFAULT_LENGTHS = {
     'a': 38.0, 'b': 41.5, 'c': 39.3, 'd': 40.1,
     'e': 55.8, 'f': 39.4, 'g': 36.7, 'h': 65.7,
     'i': 49.0, 'j': 50.0, 'k': 61.9, 'l': 7.8,
     'm': 15.0
 }
+
+parser = argparse.ArgumentParser(description='Generate Jansen linkage GIF animation')
+parser.add_argument('--Lengths', type=str, default=None,
+                    help='Query-string of bar lengths, e.g. a=38.0&b=41.5&...&m=15.0 (angle is ignored)')
+args = parser.parse_args()
+
+# Parse --Lengths: accept full URL, bare query string, or query after "?"
+lengths_str = args.Lengths
+if lengths_str:
+    # Strip everything before the first "?" if present
+    if '?' in lengths_str:
+        lengths_str = lengths_str.split('?', 1)[1]
+    # Strip any trailing fragment
+    if '#' in lengths_str:
+        lengths_str = lengths_str.rsplit('#', 1)[0]
+    parsed = dict(urllib.parse.parse_qsl(lengths_str))
+    user_lengths = {k: float(v) for k, v in parsed.items() if k in DEFAULT_LENGTHS}
+    LENGTHS = {**DEFAULT_LENGTHS, **user_lengths}
+else:
+    LENGTHS = DEFAULT_LENGTHS.copy()
+
+# ── Bar lengths ──────────────────────────────────────────────
+print(f"Using lengths: {', '.join(f'{k}={v}' for k, v in sorted(LENGTHS.items()))}")
 
 # Distance between fixed pivots (horizontal = a, vertical = l)
 FIXED_DIST_X = LENGTHS['a']   # 38.0 (horizontal offset)
@@ -344,9 +370,16 @@ for frame_idx in range(NUM_FRAMES):
 plt.close(fig)
 
 # ── Save GIF ─────────────────────────────────────────────────
+from datetime import datetime
 from PIL import Image
 
-output_path = r"C:\Sources\JansenLinkage\jansen_linkage.gif"
+output_dir = r"C:\Sources\JansenLinkage"
+ts = datetime.now().strftime("%Y%m%d%H%M%S")
+output_path = os.path.join(output_dir, f"jansen_linkage_{ts}.gif")
+idx = 0
+while os.path.exists(output_path):
+    output_path = os.path.join(output_dir, f"jansen_linkage_{ts}_{idx:02d}.gif")
+    idx += 1
 print(f"\nSaving GIF to {output_path} ...")
 print(f"  Total frames collected: {len(frames_for_gif)}")
 
