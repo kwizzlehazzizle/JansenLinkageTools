@@ -1,9 +1,17 @@
 """
-Jansen Linkage Animation Generator 
+Jansen Linkage Animation Generator
 
 ===================================
 Simulates the 11-bar Jansen linkage (used in Strandbeest walking machines)
 and generates a GIF animation of two crank revolutions with foot path tracing.
+
+USAGE
+-----
+    # Default lengths:
+        python scripts/JansenGif.py
+
+    # Custom lengths via --Lengths (quoted for Windows cmd to avoid & expansion):
+        python scripts/JansenGif.py --Lengths "a=38.0&b=41.5&c=39.3&d=40.1&e=55.8&f=39.4&g=36.7&h=65.7&i=49.0&j=50.0&k=61.9&l=7.8&m=15.0"
 
 Bar lengths from diagram:
     a=38.0, b=41.5, c=39.3, d=40.1, e=55.8, f=39.4,
@@ -311,16 +319,19 @@ for row_idx, (bar, length) in enumerate(bar_info):
                   transform=table_ax.transAxes, family='monospace')
     y_pos -= row_height
 
-# Joint markers
+# Joint markers — scale proportionally with linkage span (matches web app visual consistency)
+world_span = (xlim[1] - xlim[0]) + (ylim[1] - ylim[0])
+base_radius = world_span * 0.002   # ~0.42 for default span (~210), grows for larger linkages
+
 joint_circles = []
 for i in range(8):
-    circle = Circle((0, 0), 0.6, color='#f1c40f', ec='#e67e22', linewidth=1.5, zorder=10)
+    circle = Circle((0, 0), base_radius, color='#f1c40f', ec='#e67e22', linewidth=1.5, zorder=10)
     ax.add_patch(circle)
     joint_circles.append(circle)
 
 # Fixed pivot markers (larger, distinct)
 for idx in [0, 1]:
-    joint_circles[idx].set_radius(1.2)
+    joint_circles[idx].set_radius(base_radius * 1.75)
     joint_circles[idx].set_facecolor('#e74c3c')
     joint_circles[idx].set_edgecolor('#c0392b')
 
@@ -350,8 +361,8 @@ for frame_idx in range(NUM_FRAMES):
     # Update foot path trace (accumulated)
     foot_line.set_data(foot_path[:frame_idx+1, 0], foot_path[:frame_idx+1, 1])
 
-    # Update angle label
-    angle_label.set_text(f'Crank Angle: {angle:.1f}°')
+    # Update angle label (mod 360 so it displays 0–359 over both cycles)
+    angle_label.set_text(f'Crank Angle: {angle % 360:.1f}°')
 
     # Capture frame using savefig to BytesIO (more reliable than buffer_rgba)
     buf = io.BytesIO()
@@ -400,7 +411,7 @@ pil_images[0].save(
     save_all=True,
     append_images=pil_images[1:],
     loop=0,
-    duration=50,
+    duration=21,
     optimize=False  # Disable optimization to prevent frame collapsing
 )
 
@@ -408,4 +419,4 @@ pil_images[0].save(
 verify_img = Image.open(output_path)
 print(f"✅ Done! GIF saved: {output_path}")
 print(f"   Frames in saved GIF: {verify_img.n_frames}")
-print(f"   Duration: ~{verify_img.n_frames * 50 / 1000:.1f}s | Loop: infinite")
+print(f"   Duration: ~{verify_img.n_frames * 16 / 1000:.1f}s | Loop: infinite")
